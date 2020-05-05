@@ -1,5 +1,17 @@
 import requests
 from bs4 import BeautifulSoup
+from selenium import webdriver
+from selenium.webdriver.common.keys import Keys
+
+driver = webdriver.Chrome()
+driver.get("http://www.python.org")
+assert "Python" in driver.title
+elem = driver.find_element_by_name("q")
+elem.clear()
+elem.send_keys("pycon")
+elem.send_keys(Keys.RETURN)
+assert "No results found." not in driver.page_source
+driver.close()
 
 # Set the URL you want to webscrape from
 url = 'https://www.indeed.com/q-machine-learning-engineer-l-Seattle,-WA-jobs.html'
@@ -16,47 +28,47 @@ for tag in soup.findAll('a', class_="jobtitle turnstileLink"):
     titles_found.append(title)
     job_links.append(tag)
 
-# Testing
-print("right number of jobs (18)? ", len(job_links) == 18, " actual was {}".format(len(job_links)))
-job_titles = [
-    "Machine Learning Engineer - Sensing - AI/ML",
-    "Siri - Machine Learning Engineer, Siri Experience",
-    "AI/ML - Machine Learning Research Engineer, Advanced Development",
-    "Machine Learning Educator",
-    "Machine Learning Engineer, Siri Web Answers",
-    "AI/ML - Machine Learning Research Engineer, Machine Intelligence",
-    "Applied Machine Learning Researcher",
-    "Machine Learning Software Engineer",
-    "2020 TechX Professional Program - Software Engineering and Development",
-    "Machine Learning Engineer",
-    "Software Engineer, AI",
-    "2020 TechX Engineering Internship",
-    "NLP / Machine Learning Engineers",
-    "Applied Machine Learning Engineer",
-    "Machine Learning Engineer",
-    "Software Engineer",
-    "Machine Learning Software Engineer - US",
-    "Siri - Machine Learning Engineer"
-]
+# # Testing
+# print("right number of jobs (18)? ", len(job_links) == 18, " actual was {}".format(len(job_links)))
+# job_titles = [
+#     "Machine Learning Engineer - Sensing - AI/ML",
+#     "Siri - Machine Learning Engineer, Siri Experience",
+#     "AI/ML - Machine Learning Research Engineer, Advanced Development",
+#     "Machine Learning Educator",
+#     "Machine Learning Engineer, Siri Web Answers",
+#     "AI/ML - Machine Learning Research Engineer, Machine Intelligence",
+#     "Applied Machine Learning Researcher",
+#     "Machine Learning Software Engineer",
+#     "2020 TechX Professional Program - Software Engineering and Development",
+#     "Machine Learning Engineer",
+#     "Software Engineer, AI",
+#     "2020 TechX Engineering Internship",
+#     "NLP / Machine Learning Engineers",
+#     "Applied Machine Learning Engineer",
+#     "Machine Learning Engineer",
+#     "Software Engineer",
+#     "Machine Learning Software Engineer - US",
+#     "Siri - Machine Learning Engineer"
+# ]
 
 # titles_found.append(title)
 # job_links.append(tag)
 
 
-not_found = []
-found = []
-for job_title in job_titles:
-    found_it = job_title in titles_found
-    if found_it:
-        tag = job_links
-        found.append(job_title)
-    else:
-        not_found.append(job_title)
-
-print("found: ", len(found))
-print("not found: ", len(not_found), "\n")
-print("Found the following:\n", "\n".join(found), "\n")
-print("Did not find the following:\n", "\n".join(not_found))
+# not_found = []
+# found = []
+# for job_title in job_titles:
+#     found_it = job_title in titles_found
+#     if found_it:
+#         tag = job_links
+#         found.append(job_title)
+#     else:
+#         not_found.append(job_title)
+#
+# print("found: ", len(found))
+# print("not found: ", len(not_found), "\n")
+# print("Found the following:\n", "\n".join(found), "\n")
+# print("Did not find the following:\n", "\n".join(not_found))
 
 
 print("\n\n Whole Tag:")
@@ -65,17 +77,22 @@ tag = job_links[0]
 for k, v in tag.attrs.items():
     print("'{}': {}".format(k,v))
 
-print("\nStripped String:")
-for string in tag.stripped_strings:
-    print(repr(string))
+# print("\nStripped String:")
+# for string in tag.stripped_strings:
+#     print(repr(string))
 
-next_url = 'http://indeed.com/' + tag['href']
-
-# Connect to the URL
-response = requests.get(next_url)
-print(next_url)
+# Get and connect to the job page URL
+job_page_url = 'http://indeed.com/' + tag['href']
+response = requests.get(job_page_url)
+print("job page url: ", job_page_url)
 soup = BeautifulSoup(response.text, "html.parser")
-# print (soup)
+
+# Get and connect to the job APPLY NOW page URL
+job_page_url = 'http://indeed.com/' + tag['href']
+response = requests.get(job_page_url)
+print("job page url: ", job_page_url)
+soup = BeautifulSoup(response.text, "html.parser")
+
 
 
 #
