@@ -3,18 +3,9 @@ from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 
-driver = webdriver.Chrome()
-driver.get("http://www.python.org")
-assert "Python" in driver.title
-elem = driver.find_element_by_name("q")
-elem.clear()
-elem.send_keys("pycon")
-elem.send_keys(Keys.RETURN)
-assert "No results found." not in driver.page_source
-driver.close()
-
 # Set the URL you want to webscrape from
-url = 'https://www.indeed.com/q-machine-learning-engineer-l-Seattle,-WA-jobs.html'
+# url = 'https://www.indeed.com/q-machine-learning-engineer-l-Seattle,-WA-jobs.html'
+url = 'https://www.indeed.com/jobs?q=machine+learning+engineer+luminex&l=Seattle%2C+WA'
 
 # Connect to the URL
 response = requests.get(url)
@@ -87,11 +78,42 @@ response = requests.get(job_page_url)
 print("job page url: ", job_page_url)
 soup = BeautifulSoup(response.text, "html.parser")
 
-# Get and connect to the job APPLY NOW page URL
-job_page_url = 'http://indeed.com/' + tag['href']
-response = requests.get(job_page_url)
-print("job page url: ", job_page_url)
-soup = BeautifulSoup(response.text, "html.parser")
+# Click on apply button
+driver = webdriver.Chrome()
+driver.get(job_page_url)
+
+apply_button = driver.find_element_by_id('indeedApplyButtonContainer')
+ids_pre = driver.find_elements_by_xpath('//*[@id]')
+for ii in ids_pre:
+    if 'iframe' in ii.get_attribute('id'):
+        print (ii.get_attribute('id') )
+        iframe_name = ii.get_attribute('id')
+
+apply_button.click()
+driver.implicitly_wait(20)
+driver.switch_to.frame('testtest')
+driver.switch_to.frame(iframe_name)
+driver.implicitly_wait(20)
+print('switched iframes')
+ids = driver.find_elements_by_xpath('//*[@id]')
+for ii in ids:
+    # if 'apply' in ii.get_attribute('id'):
+    print (ii.get_attribute('id') )
+
+apply_ids = driver.find_elements_by_id('ia-ApplyFormScreen')
+apply_classes = driver.find_elements_by_class_name('ia-ApplyFormScreen')
+print("ids: ", apply_ids)
+print("classes: ", apply_classes)
+# elem = driver.find_element_by_class_name('ia-ApplyFormScreen')
+# print(elem.text)
+print("Doneee")
+# assert "Python" in driver.title
+# elem = driver.find_element_by_name("q")
+# elem.clear()
+# elem.send_keys("pycon")
+# elem.send_keys(Keys.RETURN)
+# assert "No results found." not in driver.page_source
+# driver.close()
 
 
 
