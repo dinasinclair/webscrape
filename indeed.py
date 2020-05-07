@@ -41,11 +41,17 @@ driver.implicitly_wait(10)
 iframe_apply = driver.find_element_by_xpath("//iframe[@title='Apply Now']")
 driver.switch_to.frame(iframe_apply)
 driver.implicitly_wait(10)
-print(driver.page_source)
+# print(driver.page_source)
+
+app_soup = BeautifulSoup(driver.page_source, "html.parser")
+
+app_text = app_soup.get_text("\n", strip=True).lower()
+
+print ("APP TEXT: \n", app_text)
 
 for key_word in ["gender", "pronoun", "female", "veteran", "race", "diversity"]:
     print(
-        "The word {} appears in the application {} times".format(key_word, driver.page_source.lower().count(key_word)))
+        "The word {} appears in the application {} times".format(key_word, app_text.count(key_word)))
 
 print("Done!! :D")
 
