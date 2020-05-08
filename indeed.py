@@ -8,8 +8,14 @@ ALL_MLE_SEA_URL = 'https://www.indeed.com/q-machine-learning-engineer-l-Seattle,
 APPLY_NOW_LUMINEX_URL = 'https://www.indeed.com/jobs?q=machine+learning+engineer+luminex&l=Seattle%2C+WA'
 # Just Apply-Now Technosoft (Has only non-diversity extra questions)
 APPLY_NOW_TECHNOSOFT_URL = 'https://www.indeed.com/jobs?q=machine+learning+engineer+technosoft&l=Seattle%2C+WA'
-# Convoy Apply On Company Website has pronoun question
+# Convoy Apply On Company Website has pronoun question (on lever)
 APPLY_ON_COMPANY_SITE_CONVOY_URL = 'https://www.indeed.com/jobs?q=software+engineer+convoy&l=Seattle%2C+WA'
+# greenhouse example
+APPLY_ON_COMPANY_SITE_TUSIMPLE_URL = 'https://www.indeed.com/jobs?q=machine+learning+engineer+tusimple&l=Seattle%2C+WA'
+# lever second example
+APPLY_ON_COMPANY_SITE_OUTREACH_URL = 'https://www.indeed.com/jobs?q=machine+learning+engineer+outreach+knowledge+assets&l=Seattle%2C+WA'
+# second greenhouse - the ACLU, so it has cisgender, transgender, non-binary
+APPLY_ON_COMPANY_SITE_ACLU = 'https://www.indeed.com/jobs?q=aclu+engineer&l='
 
 
 def print_all_iframes(chrome_driver):
@@ -50,6 +56,22 @@ def get_company_site_text(chrome_driver):
     # Click on apply button for on company site
     link_to_site = chrome_driver.find_element_by_xpath('//a[text()="Apply On Company Site"]')
     chrome_driver.get(link_to_site.get_attribute('href'))
+    print("current url: ", driver.current_url)
+
+    # Process all lever jobs
+    if chrome_driver.current_url.startswith("https://jobs.lever.co"):
+        print("This is a jobs.lever application")
+        # First page is description for lever forms, second page is app questions
+        link_to_app = chrome_driver.find_element_by_xpath('//a[text()="Apply for this job"]')
+        chrome_driver.get(link_to_app.get_attribute('href'))
+        return chrome_driver.page_source
+    # Process all greenhouse jobs
+    if chrome_driver.current_url.startswith("https://boards.greenhouse.io/"):
+        print("This is a boards.greenhouse application")
+        # greenhouse jobs put their info on the initial page, no click through needed!
+        return chrome_driver.page_source
+    else:
+        return "testtesttest"
 
 
 def html_to_stats(html_text):
@@ -59,9 +81,19 @@ def html_to_stats(html_text):
 
     # print text and stats
     print("APP TEXT: \n", app_text)
-    for key_word in ["gender", "pronoun", "female", "veteran", "race", "diversity"]:
-        print(
-            "The word {} appears in the application {} times".format(key_word, app_text.count(key_word)))
+    for key_word in ["gender",
+                     "pronoun",
+                     "female",
+                     "veteran",
+                     "race",
+                     "nonbinary",
+                     "non-binary",
+                     "cisgender",
+                     "transgender",
+                     "diversity"]:
+        if app_text.count(key_word) > 0:
+            print(
+                "The word {} appears in the application {} times".format(key_word, app_text.count(key_word)))
 
 
 def get_all_job_links(soup):
@@ -82,15 +114,16 @@ def process_job_url(chrome_driver, job_page_url):
         print("This is an apply now job!")
         app_text = get_apply_now_text(chrome_driver)
 
+
     else:
-        get_company_site_text(chrome_driver)
-        app_text = "testtesttest"
+        print("This is an external application!")
+        app_text = get_company_site_text(chrome_driver)
 
     html_to_stats(app_text)
 
 
 if __name__ == "__main__":
-    search_url = APPLY_NOW_TECHNOSOFT_URL
+    search_url = APPLY_ON_COMPANY_SITE_ACLU
 
     # Connect to the search result URL
     response = requests.get(search_url)
@@ -109,6 +142,8 @@ if __name__ == "__main__":
 
     process_job_url(driver, job_url)
 
-print("Done!! :D")
 
-driver.close()
+
+    print("Done!! :D")
+
+    # driver.close()
