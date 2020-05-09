@@ -1,6 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 from selenium import webdriver
+import pandas as pd
 
 # All MLE SEA
 ALL_MLE_SEA_URL = 'https://www.indeed.com/q-machine-learning-engineer-l-Seattle,-WA-jobs.html'
@@ -16,6 +17,8 @@ APPLY_ON_COMPANY_SITE_TUSIMPLE_URL = 'https://www.indeed.com/jobs?q=machine+lear
 APPLY_ON_COMPANY_SITE_OUTREACH_URL = 'https://www.indeed.com/jobs?q=machine+learning+engineer+outreach+knowledge+assets&l=Seattle%2C+WA'
 # second greenhouse - the ACLU, so it has cisgender, transgender, non-binary
 APPLY_ON_COMPANY_SITE_ACLU = 'https://www.indeed.com/jobs?q=aclu+engineer&l='
+# another lever non-binary example
+APPLY_NB = 'https://jobs.lever.co/innovateschools/c142ef0c-c426-4c8d-b06c-eb672075cc98/apply'
 
 
 def print_all_iframes(chrome_driver):
@@ -42,13 +45,13 @@ def get_apply_now_text(chrome_driver):
 
     # Click on apply button for apply-now
     apply_button.click()
-    chrome_driver.implicitly_wait(10)
+    chrome_driver.implicitly_wait(2)
     iframe = chrome_driver.find_element_by_xpath("//iframe[@title='No content']")
     chrome_driver.switch_to.frame(iframe)
-    chrome_driver.implicitly_wait(10)
+    chrome_driver.implicitly_wait(2)
     iframe_apply = chrome_driver.find_element_by_xpath("//iframe[@title='Apply Now']")
     chrome_driver.switch_to.frame(iframe_apply)
-    chrome_driver.implicitly_wait(10)
+    chrome_driver.implicitly_wait(2)
     return chrome_driver.page_source
 
 
@@ -56,7 +59,7 @@ def get_company_site_text(chrome_driver):
     # Click on apply button for on company site
     link_to_site = chrome_driver.find_element_by_xpath('//a[text()="Apply On Company Site"]')
     chrome_driver.get(link_to_site.get_attribute('href'))
-    print("current url: ", driver.current_url)
+    print("company site url: ", driver.current_url)
 
     # Process all lever jobs
     if chrome_driver.current_url.startswith("https://jobs.lever.co"):
@@ -70,17 +73,31 @@ def get_company_site_text(chrome_driver):
         print("This is a boards.greenhouse application")
         # greenhouse jobs put their info on the initial page, no click through needed!
         return chrome_driver.page_source
+    # TODO: fix case that job lever goes straight to app page like https://jobs.lever.co/amobee/d049864f-6949-4162-80fa-64ab217bd96b/apply?lever-source=Glassdoor
+    # TODO: add jobs.jobvite? ProbablyMonsters is one ex that uses, also https://jobs.jobvite.com/the-climate-corporation/job/ojwP9fwx?__jvst=Job+Board&__jvsd=Indeed
+    # TODO: https://chj.tbe.taleo.net/? zonar uses, also https://dtt.taleo.net/careersection/10260/jobdetail.ftl?lang=en&job=E20NATCSRCVS022-SA&src=JB-16801
+    # TODO: add a check to see if greenhouse or lever pages are embedded into company website, like https://www.docusign.com/company/careers/open?gh_jid=2179621&gh_src=678d46ab1us
+    # TODO: and same with https://enview.com/about/careers/jobs?gh_jid=4692323002&gh_src=cba71b432us
+    # TODO: add hire.withgoogle.com like https://hire.withgoogle.com/public/jobs/scottyai/view/P_AAAAAADAAADGmyZNJ2hxhI
+    # TODO: and https://hire.withgoogle.com/public/jobs/pricecom/view/P_AAAAAADAAADJaeoXf7VANS
+    # TODO: add case where there's a visible jobs.lever.io link on the company site page https://scale.com/careers/ac8fc951-e58c-440c-96b3-402d43eab6df, https://jobs.lever.co/ancestry/f59c4078-fdca-4099-92b1-62919728619e/apply or the ACLU
+    # TODO: add aperio? https://aperiogroup.bamboohr.com/jobs/view.php?id=110&source=indeed&src=indeed&postedDate=2020-05-04, bamboohr seems popular in finance
+    # TODO: add https://jobs.smartrecruiters.com/oneclick-ui/company/103157783/job/1609939482/publication/743999711924474
     else:
+        print("Can't process this app :/")
         return "testtesttest"
 
 
-def html_to_stats(html_text):
+def html_to_stats(html_text, verbose=False):
     # Get BS from page source, convert to lowercase text blob
+    stats_dict = {}
     app_soup = BeautifulSoup(html_text, "html.parser")
     app_text = app_soup.get_text("\n", strip=True).lower()
+    stats_dict['app_text'] = [app_text]
 
     # print text and stats
-    print("APP TEXT: \n", app_text)
+    # TODO: add app text as verbose or log option?
+    # print("APP TEXT: \n", app_text)
     for key_word in ["gender",
                      "pronoun",
                      "female",
@@ -91,9 +108,12 @@ def html_to_stats(html_text):
                      "cisgender",
                      "transgender",
                      "diversity"]:
-        if app_text.count(key_word) > 0:
+        word_count = app_text.count(key_word)
+        if verbose:
             print(
-                "The word {} appears in the application {} times".format(key_word, app_text.count(key_word)))
+                "The word {} appears in the application {} times".format(key_word, word_count))
+        stats_dict[key_word] = [word_count]
+    return stats_dict
 
 
 def get_all_job_links(soup):
@@ -119,11 +139,13 @@ def process_job_url(chrome_driver, job_page_url):
         print("This is an external application!")
         app_text = get_company_site_text(chrome_driver)
 
-    html_to_stats(app_text)
+    stats_dict = html_to_stats(app_text)
+    stats_dict['is_apply_now'] = [is_apply_now]
+    return stats_dict
 
 
 if __name__ == "__main__":
-    search_url = APPLY_ON_COMPANY_SITE_ACLU
+    search_url = ALL_MLE_SEA_URL
 
     # Connect to the search result URL
     response = requests.get(search_url)
@@ -133,17 +155,28 @@ if __name__ == "__main__":
 
     # Grabbing first job link as an example
     job_links = get_all_job_links(soup)
-    example_job = job_links[0]
 
-    # Get and connect to the job page URL
-    job_url = 'http://indeed.com/' + example_job['href']
-    print("job page url: ", job_url)
     driver = webdriver.Chrome()
+    # Get and connect to the job page URL
+    job_url = 'http://indeed.com/' + job_links[0]['href']
+    print("job page url: ", job_url)
+    # Scrape the application
+    stats_dict = process_job_url(driver, job_url)
+    stats_dict['job_url'] = [job_url]
+    df = pd.DataFrame(data=stats_dict)
+    driver.implicitly_wait(5)
 
-    process_job_url(driver, job_url)
+    for job in job_links[1:]:
+        # Get and connect to the job page URL
+        job_url = 'http://indeed.com/' + job['href']
+        print("job page url: ", job_url)
+        # Scrape the application
+        stats_dict = process_job_url(driver, job_url)
+        stats_dict['job_url'] = [job_url]
+        df = df.append(pd.DataFrame(data=stats_dict))
+        driver.implicitly_wait(5)
 
-
-
+    df.to_csv('job_data.csv')
     print("Done!! :D")
 
-    # driver.close()
+    driver.close()
