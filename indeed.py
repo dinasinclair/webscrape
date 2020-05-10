@@ -59,7 +59,7 @@ def get_company_site_text(chrome_driver):
     # Click on apply button for on company site
     link_to_site = chrome_driver.find_element_by_xpath('//a[text()="Apply On Company Site"]')
     chrome_driver.get(link_to_site.get_attribute('href'))
-    print("company site url: ", driver.current_url)
+    print("company site url: ", chrome_driver.current_url)
 
     # Process all lever jobs
     if chrome_driver.current_url.startswith("https://jobs.lever.co"):
@@ -126,7 +126,7 @@ def get_all_job_links(soup):
 
 
 def process_job_url(chrome_driver, job_page_url):
-    driver.get(job_page_url)
+    chrome_driver.get(job_page_url)
     # Check if this is an apply-now job
     is_apply_now = len(chrome_driver.find_elements_by_id('indeedApplyButtonContainer')) == 1
 
@@ -144,39 +144,75 @@ def process_job_url(chrome_driver, job_page_url):
     return stats_dict
 
 
-if __name__ == "__main__":
-    search_url = ALL_MLE_SEA_URL
+def next_page_exists(chrome_driver):
+    pagination = chrome_driver.find_elements_by_class_name('np')
+    if len(pagination) == 1:
+        if "Next" in pagination[0].text:
+            return True
+        else:
+            return False
+    if len(pagination) == 0:
+        return False
+    if len(pagination) > 1:
+        assert ValueError("Only expect one pagination (np) item per chrome page.")
 
+
+def get_next_page(chrome_driver):
+    try:
+        next_page_button = chrome_driver.find_element_by_class_name('np')
+    except:
+        print("Expected exactly one Next>> elem. Did you validate that next page exists?")
+    next_page_button.click()
+
+
+def run(search_url, chrome_driver):
     # Connect to the search result URL
-    response = requests.get(search_url)
+    # response = requests.get(search_url)
+    # cdriver = webdriver.Chrome()
+    chrome_driver.get(search_url)
 
     # Parse HTML and save to BeautifulSoup object
-    soup = BeautifulSoup(response.text, "html.parser")
+    soup = BeautifulSoup(chrome_driver.page_source, "html.parser")
 
     # Grabbing first job link as an example
     job_links = get_all_job_links(soup)
 
-    driver = webdriver.Chrome()
-    # Get and connect to the job page URL
+    # driver = webdriver.Chrome()
+
+    # Get and connect to the first job page URL for df col format
     job_url = 'http://indeed.com/' + job_links[0]['href']
     print("job page url: ", job_url)
     # Scrape the application
-    stats_dict = process_job_url(driver, job_url)
+    stats_dict = process_job_url(chrome_driver, job_url)
     stats_dict['job_url'] = [job_url]
     df = pd.DataFrame(data=stats_dict)
-    driver.implicitly_wait(5)
+    chrome_driver.implicitly_wait(5)
 
     for job in job_links[1:]:
         # Get and connect to the job page URL
         job_url = 'http://indeed.com/' + job['href']
         print("job page url: ", job_url)
         # Scrape the application
-        stats_dict = process_job_url(driver, job_url)
+        stats_dict = process_job_url(chrome_driver, job_url)
         stats_dict['job_url'] = [job_url]
         df = df.append(pd.DataFrame(data=stats_dict))
-        driver.implicitly_wait(5)
+        chrome_driver.implicitly_wait(5)
 
     df.to_csv('job_data.csv')
     print("Done!! :D")
+
+
+if __name__ == "__main__":
+    search_url = APPLY_ON_COMPANY_SITE_CONVOY_URL
+    driver = webdriver.Chrome()
+
+    # Test that main data creation for one page works
+    run(search_url, driver)
+
+    # Test that pagination works
+    driver.get(search_url)
+    print("Is there a next page? ", next_page_exists(driver))
+    if next_page_exists(driver):
+        get_next_page(driver)
 
     driver.close()
