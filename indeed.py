@@ -5,6 +5,7 @@ from typing import List, Dict
 from dataclasses import dataclass
 from dataclasses_json import dataclass_json
 from datetime import datetime
+from selenium.common.exceptions import NoSuchElementException
 
 # All MLE SEA
 ALL_MLE_SEA_URL = 'https://www.indeed.com/q-machine-learning-engineer-l-Seattle,-WA-jobs.html'
@@ -35,6 +36,7 @@ class JobInfo:
     rank: int = None
     description: str = None  # TODO: make not none, collect during get()
     title: str = None  # TODO: make not none, collect during get()
+    company: str = None  # TODO: make not none, collect during get()
     stats: Dict = None
 
 
@@ -51,7 +53,8 @@ class SearchScraper:
 
     def __init__(self):
         self.driver = webdriver.Chrome()
-        self.pagination_limit = 2
+        self.pagination_limit = 3
+        self.current_search_page = None
 
     def print_all_iframes(self) -> None:
         """Prints all iframes in a current driver page source.
@@ -111,7 +114,14 @@ class SearchScraper:
         """
         # Click on apply button for on company site
         indeed_url = self.driver.current_url
-        link_to_site = self.driver.find_element_by_xpath('//a[text()="Apply On Company Site"]')
+        try:
+            link_to_site = self.driver.find_element_by_xpath('//a[text()="Apply On Company Site"]')
+        except NoSuchElementException:
+            # If we can't find the apply button, don't stop running the program. Allow failure and continue.
+            return JobInfo.from_dict({'app_text': 'Error. Didn\'t find Apply On Company Site button',
+                                      'app_type': 'Apply On Company Site Error',
+                                      'indeed_url': indeed_url})
+
         self.driver.get(link_to_site.get_attribute('href'))
         self.driver.implicitly_wait(5)
         print("company site url: ", self.driver.current_url)
@@ -209,50 +219,41 @@ class SearchScraper:
         print("STATS: ", job_info.stats)
         return job_info
 
-    # TODO make this next page work!!
     def next_page_exists(self) -> bool:
         """
         Returns: bool, true if there is a next page button.
         """
-        # pagination = self.driver.find_elements_by_class_name('pagination-list')
-        # pagination = self.driver.find_elements_by_xpath("//aria-label")
-        # pagination = self.driver.find_element_by_xpath("//div*[@aria-label='Next']")
+        self.driver.implicitly_wait(2)
+        # Re-centers to search screen (rather than individual job pages)
+        self.driver.get(self.current_search_page)
+        self.driver.implicitly_wait(2)
 
-        pagination = self.driver.find_elements_by_xpath('//*[@aria-label]')
+        # Looks through all aria labels (there's a "next" and "previous" if either exists)
+        pagination = self.driver.find_elements_by_xpath("//*[@aria-label='Next']")
 
-        print (pagination)
-        print(len(pagination))
+        # TODO: use find element rather than find elements, or somehow call out if there's more than one next button?
+        print("next page exists called on ", self.driver.current_url)
+        print("found {} elements with Next label".format(len(pagination)))
         if len(pagination) == 0:
             return False
         else:
-            for elem in pagination:
-                aria_label = elem.get_attribute("aria-label")
-                print("aria: ", aria_label)
-                if aria_label is not None and "Next" in aria_label:
-                    return True
-        return False
-
-        # if len(pagination) < 2:
-        #     aria_label = pagination[-1].find_element_by_css_selector('a').get_attribute("aria-label")
-        #     print ("aria: ", aria_label)
-        #     if aria_label is not None and "Next" in aria_label:
-        #         return True
-        #     else:
-        #         return False
-        # if len(pagination) > 1:
-        #     assert ValueError("Only expect one pagination (np) item per chrome page.")
+            return True
 
     def get_next_page(self) -> None:
         """
         Navigates to next page of indeed job postings.
         Returns: None
         """
+        self.driver.implicitly_wait(2)
+        # TODO: is this the right error handling method? idk if it just prints but continues...
         try:
-            next_page_button = self.driver.find_element_by_class_name('np')
+            next_page_button = self.driver.find_element_by_xpath("//*[@aria-label='Next']")
         except:
-            print("Expected exactly one Next>> elem. Did you validate that next page exists?")
+            print("Expected exactly one Next elem. Did you validate that next page exists?")
         else:
             next_page_button.click()
+            self.driver.implicitly_wait(2)
+            self.current_search_page = self.driver.current_url
 
     def get_job_normalized_json(self, job_link: str, page_number: int, rank: int):
         job_url = 'http://indeed.com/' + job_link['href']
@@ -263,55 +264,40 @@ class SearchScraper:
         normalized_json = pd.json_normalize([job_info.to_dict()])
         return normalized_json
 
-    def run(self, search_url):
+    def get_column_names(self, job) -> List:
+        normalized_json = self.get_job_normalized_json(job, page_number=1, rank=1)
+        df = pd.DataFrame(data=normalized_json, index=[0])
+        return df.coluns
+
+    def run(self, url: str):
         """
         Given a specific search URL
         Args:
-            search_url:
+            url:
 
         Returns:
 
         """
-        # Connect to the search result URL, init page number
-        self.driver.get(search_url)
-        print("Next page exists? ", self.next_page_exists())
+        # Initialize counts and url position
         page_number = 1
         rank = 1
+        self.driver.get(url)
+        self.current_search_page = url
 
-        # Parse HTML and save to BeautifulSoup object
+        # Parse HTML, grab all job links on page
         soup = BeautifulSoup(self.driver.page_source, "html.parser")
-
-        # Grabbing all job links
         job_links = self.get_all_job_links(soup)
 
-        # Get and connect to the first job page URL for df col format
-        normalized_json = self.get_job_normalized_json(job_links[0], page_number, rank)
-        df = pd.DataFrame(data=normalized_json, index=[0])
+        # Initialize df where we'll store the data
+        columns = self.get_column_names(job_links[0])
+        df = pd.DataFrame(columns=columns)
         self.driver.implicitly_wait(5)
-        print("Processed job {}!".format(rank))
-        rank += 1
 
-
-        for job in job_links[1:]:
-            # Get and connect to the job page URL
-            normalized_json = self.get_job_normalized_json(job, page_number, rank)
-            # Note: passing index 0 okay because we're creating a one row df
-            df = df.append(pd.DataFrame(data=normalized_json, index=[0]))
-            self.driver.implicitly_wait(5)
-            print("Processed job {}!".format(rank))
-            rank += 1
-        page_number += 1
-
-        print("about to paginate!")
-        print("Next page exists? ", self.next_page_exists())
-        print
-
-        # Repeat as long as there's another page to grab
-        while self.next_page_exists() and page_number <= self.pagination_limit:
+        while True:
             print("On page {}!".format(page_number))
-            self.get_next_page()
             soup = BeautifulSoup(self.driver.page_source, "html.parser")
             job_links = self.get_all_job_links(soup)
+
             for job in job_links:
                 # Get and connect to the job page URL
                 normalized_json = self.get_job_normalized_json(job, page_number, rank)
@@ -320,7 +306,15 @@ class SearchScraper:
                 self.driver.implicitly_wait(5)
                 print("Processed job {}!".format(rank))
                 rank += 1
-            page_number += 1
+
+            # TODO: write small chunks to csv so that if it pauses midway through you don't lose all data?
+
+            # Repeat as long as there's another page to grab and we're under the limit
+            if not self.next_page_exists() or page_number > self.pagination_limit:
+                break
+            else:
+                self.get_next_page()
+                page_number += 1
 
         df.to_csv('job_data.csv')
         print("Done!! :D")
@@ -334,9 +328,17 @@ if __name__ == "__main__":
     search_scraper.run(search_url)
 
     # Test that pagination works
-    search_scraper.driver.get(search_url)
-    print("Is there a next page? ", search_scraper.next_page_exists())
-    if search_scraper.next_page_exists():
-        search_scraper.get_next_page()
+    # search_scraper.driver.get(search_url)
+    # print("Is there a next page? ", search_scraper.next_page_exists())
+    # search_scraper.driver.implicitly_wait(1)
+    # if search_scraper.next_page_exists():
+    #     search_scraper.driver.implicitly_wait(1)
+    #     search_scraper.get_next_page()
+    #     search_scraper.driver.implicitly_wait(1)
+    #     print("driver url: ", search_scraper.driver.current_url)
+    #     search_scraper.driver.implicitly_wait(1)
+    #     print("current_page: ", search_scraper.current_search_page)
 
     search_scraper.driver.close()
+
+# TODO: if fails to find element, fail elegantly rather than throw error
