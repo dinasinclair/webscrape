@@ -2,9 +2,8 @@ from bs4 import BeautifulSoup
 from selenium import webdriver
 import pandas as pd
 from typing import List, Dict
-from dataclasses import dataclass
-from dataclasses_json import dataclass_json
-from datetime import datetime
+from job_structs import JobInfo
+
 from selenium.common.exceptions import NoSuchElementException, ElementClickInterceptedException
 import time
 
@@ -24,34 +23,10 @@ APPLY_ON_COMPANY_SITE_OUTREACH_URL = 'https://www.indeed.com/jobs?q=machine+lear
 APPLY_ON_COMPANY_SITE_ACLU = 'https://www.indeed.com/jobs?q=aclu+engineer&l='
 # another lever non-binary example
 APPLY_NB = 'https://jobs.lever.co/innovateschools/c142ef0c-c426-4c8d-b06c-eb672075cc98/apply'
+# Square is an example of a smartrecruiters job with pronoun questions!
 
 WAIT_LONG = 10
 WAIT_SHORT = 5
-
-
-@dataclass_json
-@dataclass
-class JobInfo:
-    title: str
-    company: str
-    location: str
-    indeed_url: str
-    page_number: int
-    app_type: str = None
-    app_text: str = None
-    company_url: str = None
-    rank: int = None
-    description: str = None  # TODO: make not none, collect during get()
-    stats: Dict = None
-
-
-@dataclass_json
-@dataclass
-class QueryInfo:
-    query: str
-    location: str
-    time: datetime
-    result: List[JobInfo]
 
 
 class SearchScraper:
@@ -132,9 +107,18 @@ class SearchScraper:
         # Process all lever jobs
         if self.driver.current_url.startswith("https://jobs.lever.co"):
             print("This is a jobs.lever application")
-            # First page is description for lever forms, second page is app questions
-            link_to_app = self.driver.find_element_by_xpath('//a[text()="Apply for this job"]')
-            self.driver.get(link_to_app.get_attribute('href'))
+            # There are two structures here: straight to application, or description than application.
+            # Case 1: straight to application (ex. https://jobs.lever.co/grabango/7ff6e367-6523-4ca2-b630-57a46881e467/apply?lever-source=Glassdoor)
+            try:
+                self.driver.find_element_by_class_name('content-wrapper application page')
+            # Case 2: first page is description for lever forms, second page is app questions (like https://jobs.lever.co/blueowl/4a01e48e-8602-4f76-a87c-6ad16b63b2a1?lever-source=IndeedSponsored)
+            except:  # TODO add the right exception type here
+                self.driver.find_element_by_class_name(
+                    'content-wrapper posting page')  # TODO this could cause an error two, should I bother to catch that?
+                link_to_app = self.driver.find_element_by_xpath('//a[text()="Apply for this job"]')
+                self.driver.get(link_to_app.get_attribute('href'))
+                self.driver.implicitly_wait(WAIT_SHORT)
+
             job_info.app_text = self.strip_html(self.driver.page_source)
             job_info.app_type = 'jobs.lever'
             job_info.company_url = self.driver.current_url
@@ -149,16 +133,74 @@ class SearchScraper:
             job_info.company_url = self.driver.current_url
             return job_info
 
-        # TODO: fix case that job lever goes straight to app page like https://jobs.lever.co/amobee/d049864f-6949-4162-80fa-64ab217bd96b/apply?lever-source=Glassdoor
+        # Process greenhouse embedded jobs
+        # Ex https://www.docusign.com/company/careers/open?gh_jid=2179621&gh_src=678d46ab1us
+        # Ex https://enview.com/about/careers/jobs?gh_jid=4692323002&gh_src=cba71b432us
+        # TODO: this doesn't take into account link possibility
+        # TODO: this should be a try catch not an if, the if should be the last one to flag that I'm missing a link somehow
+        if 'boards.greenhouse.io' in self.driver.page_source.text():
+            print("this is an embedded greenhouse application")
+            embedded_app = self.driver.find_element_by_xpath('//form[contains(@action, "greenhouse.io"]')
+            job_info.app_text = self.strip_html(embedded_app.text)
+            job_info.app_type = 'embedded boards.greenhouse'
+            job_info.company_url = self.driver.current_url
+
+        # Process lever jobs that are links on the company apply now page
+        # TODO: This doesn't take into account embedding possibility
+        # examples are https://scale.com/careers/ac8fc951-e58c-440c-96b3-402d43eab6df
+        # https://jobs.lever.co/ancestry/f59c4078-fdca-4099-92b1-62919728619e/apply or the ACLU
+        if 'jobs.lever.co' in self.driver.page_source.text():
+            print("this is a link lever.co application")
+            app_link = self.driver.find_element_by_xpath('//a[contains(@href, "lever.co"]')
+            app_link.click()
+            self.driver.implicitly_wait(WAIT_SHORT)
+
+            # TODO: this will check that we're on the app page but then just fail if you're not...
+            self.driver.find_element_by_class_name('content-wrapper application page')
+            job_info.app_text = self.strip_html(self.driver.page_source)
+            job_info.app_type = 'jobs.lever'
+            job_info.company_url = self.driver.current_url
+
+        # Process if it's a hire with google link
+        # Ex https://hire.withgoogle.com/public/jobs/scottyai/view/P_AAAAAADAAADGmyZNJ2hxhI
+        # Ex https://hire.withgoogle.com/public/jobs/pricecom/view/P_AAAAAADAAADJaeoXf7VANS
+        if self.driver.current_url.startswith("https://hire.withgoogle.com/"):
+            # TODO: this currently fails if it can't find this class name, correct call?
+            print("this is a hire.withgoogle application")
+            app_form = self.driver.find_element_by_class_name('bb-jobs-application__container')
+            job_info.app_text = self.strip_html(app_form.text())
+            job_info.app_type = 'hire.withgoogle'
+            job_info.company_url = self.driver.current_url
+
+        # Process Bamboo HR forms (seems like a finance thing?)
+        # https://aperiogroup.bamboohr.com/jobs/view.php?id=110&source=indeed&src=indeed&postedDate=2020-05-04
+        if self.driver.current_url.startswith("https://aperiogroup.bamboohr.com"):
+            print("this is a aperiogroup.bamboohr application")
+            app_form = self.driver.find_element_by_id('applicationForm')
+            job_info.app_text = self.strip_html(app_form.text())
+            job_info.app_type = 'aperiogroup.bamboohr'
+            job_info.company_url = self.driver.current_url
+
+        # Process SmartRecruiters jobs
+        # TODO oh gosh this is a tricky one... you can see all the text but only in the script that sets window.__OC_CONTEXT__ =
+        # Ex https://www.smartrecruiters.com/Daxko1/743999712591770-software-engineer?trid=998bc6c9-cfbe-4db9-af4b-d7bb8407f264
+        # Ex https://jobs.smartrecruiters.com/oneclick-ui/company/103157783/job/1609939482/publication/743999711924474
+        if self.driver.current_url.startswith("https://www.smartrecruiters.com"):
+            print("this is a smartrecruiters application")
+            try:
+                interested_button = self.driver.find_element_by_xpath('//a[text()="I\'m interested"]')
+                interested_button.click()
+                self.driver.implicitly_wait(WAIT_SHORT)
+            except:
+                pass
+
+            # TODO: have to give raw text which is a mess, unless I can figure out better way to parse the script labels?
+            job_info.app_text = self.strip_html(self.driver.page_source)
+            job_info.app_type = 'smartrecruiters'
+            job_info.company_url = self.driver.current_url
+
         # TODO: add jobs.jobvite? ProbablyMonsters is one ex that uses, also https://jobs.jobvite.com/the-climate-corporation/job/ojwP9fwx?__jvst=Job+Board&__jvsd=Indeed
         # TODO: https://chj.tbe.taleo.net/? zonar uses, also https://dtt.taleo.net/careersection/10260/jobdetail.ftl?lang=en&job=E20NATCSRCVS022-SA&src=JB-16801
-        # TODO: add a check to see if greenhouse or lever pages are embedded into company website, like https://www.docusign.com/company/careers/open?gh_jid=2179621&gh_src=678d46ab1us
-        # TODO: and same with https://enview.com/about/careers/jobs?gh_jid=4692323002&gh_src=cba71b432us
-        # TODO: add hire.withgoogle.com like https://hire.withgoogle.com/public/jobs/scottyai/view/P_AAAAAADAAADGmyZNJ2hxhI
-        # TODO: and https://hire.withgoogle.com/public/jobs/pricecom/view/P_AAAAAADAAADJaeoXf7VANS
-        # TODO: add case where there's a visible jobs.lever.io link on the company site page https://scale.com/careers/ac8fc951-e58c-440c-96b3-402d43eab6df, https://jobs.lever.co/ancestry/f59c4078-fdca-4099-92b1-62919728619e/apply or the ACLU
-        # TODO: add aperio? https://aperiogroup.bamboohr.com/jobs/view.php?id=110&source=indeed&src=indeed&postedDate=2020-05-04, bamboohr seems popular in finance
-        # TODO: add https://jobs.smartrecruiters.com/oneclick-ui/company/103157783/job/1609939482/publication/743999711924474
         else:
             print("Can't process this app :/")
             job_info.app_text = "Can't Process"
@@ -214,7 +256,7 @@ class SearchScraper:
                                           'location': location,
                                           'company': company,
                                           'indeed_url': indeed_url,
-                                          'page_number' : page_number})
+                                          'page_number': page_number})
             jobs += [job_info]
 
         return jobs
