@@ -1,5 +1,7 @@
 # All MLE SEA
 ALL_MLE_SEA_URL = 'https://www.indeed.com/q-machine-learning-engineer-l-Seattle,-WA-jobs.html'
+# All MLE SF
+ALL_MLE_SF_URL = 'https://www.indeed.com/jobs?q=machine+learning+engineer&l=San+Francisco%2C+CA'
 # Just Apply-Now Luminex (has generic binary gender, veteran, race extra questions)
 APPLY_NOW_LUMINEX_URL = 'https://www.indeed.com/jobs?q=machine+learning+engineer+luminex&l=Seattle%2C+WA'
 # Just Apply-Now Technosoft (Has only non-diversity extra questions)

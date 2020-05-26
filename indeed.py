@@ -3,7 +3,7 @@ from selenium import webdriver
 import pandas as pd
 from typing import List
 from job_structs import IndeedJobInfo, CompanySiteInfo
-from constants import WAIT_SHORT, WAIT_LONG, ALL_MLE_SEA_URL, APPLY_ON_COMPANY_SITE_CONVOY_URL
+from constants import WAIT_SHORT, WAIT_LONG, ALL_MLE_SEA_URL, APPLY_ON_COMPANY_SITE_CONVOY_URL, ALL_MLE_SF_URL
 from company_site_helpers import CompanySiteParser
 
 from selenium.common.exceptions import NoSuchElementException, ElementClickInterceptedException
@@ -14,7 +14,7 @@ class SearchScraper:
 
     def __init__(self):
         self.driver = webdriver.Chrome()
-        self.pagination_limit = 5
+        self.pagination_limit = 10
         self.current_search_page = None
 
     def print_all_iframes(self) -> None:
@@ -50,7 +50,7 @@ class SearchScraper:
         """
         # Make sure you're on the indeed link page
         self.driver.get(indeed_url)
-        self.driver.implicitly_wait(WAIT_SHORT)
+        self.driver.implicitly_wait(WAIT_LONG)
 
         # Check if this is an apply-now job
         is_apply_now = len(self.driver.find_elements_by_id('indeedApplyButtonContainer')) == 1
@@ -128,12 +128,40 @@ class SearchScraper:
                                               'app_url': self.driver.current_url,
                                               'app_text': CompanySiteParser.get_smartrecruiters_job_text(self.driver)})
 
-        # TODO: add jobs.jobvite? ProbablyMonsters is one ex that uses, also https://jobs.jobvite.com/the-climate-corporation/job/ojwP9fwx?__jvst=Job+Board&__jvsd=Indeed
         # TODO: https://chj.tbe.taleo.net/? zonar uses, also https://dtt.taleo.net/careersection/10260/jobdetail.ftl?lang=en&job=E20NATCSRCVS022-SA&src=JB-16801
+        # TODO: add apply with indeed embedded in company site https://www.kforce.com/Jobs/job.aspx?job=1696~TVT~1896026T1~99&id=2128&utm_source=Indeed&utm_medium=PPC&utm_campaign=Indeed-PPC#/?_k=gqcchp
+
+        if self.driver.current_url.startswith("https://careers.twitter.com"):
+            return CompanySiteInfo.from_dict({'app_type': 'twitter',
+                                              'app_url': self.driver.current_url,
+                                              'app_text': CompanySiteParser.get_twitter_job_text(self.driver)})
+
+        if self.driver.current_url.startswith("https://www.facebook.com/careers/"):
+            return CompanySiteInfo.from_dict({'app_type': 'facebook',
+                                              'app_url': self.driver.current_url,
+                                              'app_text': CompanySiteParser.get_facebook_job_text(self.driver)})
+
+        if self.driver.current_url.startswith("http://jobs.jobvite.com/"):
+            return CompanySiteInfo.from_dict({'app_type': 'jobvite',
+                                              'app_url': self.driver.current_url,
+                                              'app_text': CompanySiteParser.get_jobvite_job_text(self.driver)})
+
+        if 'workday' in self.driver.page_source:
+            return CompanySiteInfo.from_dict({'app_type': 'workday',
+                                              'app_url': self.driver.current_url,
+                                              'app_text': 'cannot parse'})
+
+        if len(self.driver.find_elements_by_xpath('//a[contains(@href, "mailto")]')) > 0:
+            # TODO: this gets false positives like https://www.governmentjobs.com/careers/tacoma/jobs/2735787/machine-learning-engineer and amazon
+            # Ex https://lexion.ai/senior-machine-learning-engineer
+            return CompanySiteInfo.from_dict({'app_type': 'mailto',
+                                              'app_url': self.driver.current_url,
+                                              'app_text': 'no form to parse'})
+
         else:
             return CompanySiteInfo.from_dict({'app_type': 'unknown',
                                               'app_url': self.driver.current_url,
-                                              'app_text': 'unknown - could not parse this app type'})
+                                              'app_text': 'cannot parse'})
 
     def get_job_info(self, soup: BeautifulSoup, page_number: int) -> List[IndeedJobInfo]:
         # Collect all job page links from search results
@@ -162,6 +190,8 @@ class SearchScraper:
                                                 'stats': stats})
             jobs += [job_info]
             rank += 1
+            print("This is a {} job".format(company_site_info.app_type))
+            time.sleep(WAIT_SHORT)
 
         return jobs
 
@@ -236,16 +266,17 @@ class SearchScraper:
         self.driver.implicitly_wait(WAIT_LONG)
 
         while True:
+            # Get next set of job info
             # TODO: seems like this manages to think page 1 is empty when it's not, check?
-            soup = BeautifulSoup(self.driver.page_source, "html.parser")
-            jobs_on_page = self.get_job_info(soup, page_number)
+            if page_number != 1:
+                soup = BeautifulSoup(self.driver.page_source, "html.parser")
+                jobs_on_page = self.get_job_info(soup, page_number)
 
             for job in jobs_on_page:
                 # Turn job info struct into a json
                 normalized_json = pd.json_normalize([job.to_dict()])
                 # Note: passing index 0 okay because we're creating a one row df
                 df = df.append(pd.DataFrame(data=normalized_json, index=[0]))
-                time.sleep(WAIT_LONG)
                 print("Processed job {} on page {}!".format(job.rank_on_page, page_number))
 
             # TODO: write small chunks to csv so that if it pauses midway through you don't lose all data?
@@ -263,7 +294,7 @@ class SearchScraper:
 
 
 if __name__ == "__main__":
-    search_url = APPLY_ON_COMPANY_SITE_CONVOY_URL
+    search_url = ALL_MLE_SF_URL
     search_scraper = SearchScraper()
 
     # Test that main data creation for one page works
