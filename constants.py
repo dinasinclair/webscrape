@@ -20,3 +20,14 @@ APPLY_NB = 'https://jobs.lever.co/innovateschools/c142ef0c-c426-4c8d-b06c-eb6720
 
 WAIT_LONG = 10
 WAIT_SHORT = 5
+
+KEY_WORDS = ["gender",
+             "pronoun",
+             "female",
+             "veteran",
+             "race",
+             "nonbinary",
+             "non-binary",
+             "cisgender",
+             "transgender",
+             "diversity"]

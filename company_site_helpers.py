@@ -1,6 +1,7 @@
-from constants import WAIT_SHORT, WAIT_LONG
+from constants import WAIT_SHORT, WAIT_LONG, KEY_WORDS
 from bs4 import BeautifulSoup
 from typing import Dict
+from selenium.common.exceptions import NoSuchElementException
 
 
 class CompanySiteParser:
@@ -20,16 +21,7 @@ class CompanySiteParser:
             print("APP TEXT: \n", app_text)
 
         # store word count in app text for all key words
-        for key_word in ["gender",
-                         "pronoun",
-                         "female",
-                         "veteran",
-                         "race",
-                         "nonbinary",
-                         "non-binary",
-                         "cisgender",
-                         "transgender",
-                         "diversity"]:
+        for key_word in KEY_WORDS:
             word_count = app_text.count(key_word)
             if verbose:
                 print(
@@ -85,16 +77,23 @@ class CompanySiteParser:
         # Process greenhouse embedded jobs
         # Ex https://www.docusign.com/company/careers/open?gh_jid=2179621&gh_src=678d46ab1us
         # Ex https://enview.com/about/careers/jobs?gh_jid=4692323002&gh_src=cba71b432us
-        # TODO: this doesn't take into account link possibility
-        # TODO: this should be a try catch not an if, the if should be the last one to flag that I'm missing a link somehow
-        print("this is an embedded greenhouse application")
         try:
+            embedded_iframe = driver.find_element_by_xpath('//iframe[contains(@src, "greenhouse")]')
+            driver.switch_to.frame(embedded_iframe)
+            driver.implicitly_wait(WAIT_SHORT)
+            print("found and switched to iframe")
             embedded_app = driver.find_element_by_xpath('//form[contains(@action, "greenhouse")]')
-            return CompanySiteParser.strip_html(embedded_app.text)
-        except:
-            print("Hit this error, TODO fix this code cause this shouldn't happen?")
-            # Hitting above error with picnic health app
-        return CompanySiteParser.strip_html(driver.page_source)
+            print("embedded app: ", embedded_app.get_attribute('innerHTML'))
+            return CompanySiteParser.strip_html(embedded_app.get_attribute('innerHTML'))
+        except NoSuchElementException:
+            # Second method: look for a greenhouse link and follow it
+            try:
+                app_link = driver.find_element_by_xpath('//a[contains(@href, "greenhouse")]')
+                driver.get(app_link.get_attribute('href'))
+                driver.implicitly_wait(WAIT_SHORT)
+                return CompanySiteParser.strip_html(driver.page_source)
+            except NoSuchElementException:
+                return "error getting embedded text"
 
     @staticmethod
     def get_embedded_lever_job_text(driver) -> str:
@@ -108,8 +107,8 @@ class CompanySiteParser:
         driver.implicitly_wait(WAIT_SHORT)
 
         # TODO: this will check that we're on the app page but then just fail if you're not...
-        driver.find_element_by_class_name('application-page')
-        return CompanySiteParser.strip_html(driver.page_source)
+        app_form = driver.find_element_by_class_name('application-page')
+        return CompanySiteParser.strip_html(app_form.get_attribute('innerHTML'))
 
     @staticmethod
     def get_withgoogle_job_text(driver) -> str:
@@ -118,28 +117,28 @@ class CompanySiteParser:
         # Ex https://hire.withgoogle.com/public/jobs/pricecom/view/P_AAAAAADAAADJaeoXf7VANS
         # TODO: this currently fails if it can't find this class name, correct call?
         app_form = driver.find_element_by_class_name('bb-jobs-application__container')
-        return CompanySiteParser.strip_html(app_form.text)
+        return CompanySiteParser.strip_html(app_form.get_attribute('innerHTML'))
 
     @staticmethod
     def get_bamboohr_job_text(driver) -> str:
         # Process Bamboo HR forms (seems like a finance thing?)
         # https://aperiogroup.bamboohr.com/jobs/view.php?id=110&source=indeed&src=indeed&postedDate=2020-05-04
         app_form = driver.find_element_by_id('applicationForm')
-        return CompanySiteParser.strip_html(app_form.text)
+        return CompanySiteParser.strip_html(app_form.get_attribute('innerHTML'))
 
     @staticmethod
     def get_twitter_job_text(driver) -> str:
-        # TODO: current strip html doesn't seem to see the text in dropdowns, aka misses the good stuff like the word transgender??
         app_form = driver.find_element_by_class_name('form-inside')
-        return CompanySiteParser.strip_html(app_form.text)
+        return CompanySiteParser.strip_html(app_form.get_attribute('innerHTML'))
 
     @staticmethod
     def get_facebook_job_text(driver) -> str:
-        apply_button = driver.find_element_by_xpath('//a[text()="Apply for this job"]')
-        apply_button.click()
-        driver.implicitly_wait(WAIT_LONG)
-        app_form = driver.find_element_by_xpath("//frame")
-        return CompanySiteParser.strip_html(app_form.text)
+        apply_button = driver.find_element_by_xpath('//a[text()="Apply to Job"]')
+        link_to_app = apply_button.get_attribute('href')
+        driver.get(link_to_app)
+        driver.implicitly_wait(WAIT_SHORT)
+        app_form = driver.find_element_by_xpath("//form")
+        return CompanySiteParser.strip_html(app_form.get_attribute('innerHTML'))
 
     @staticmethod
     def get_smartrecruiters_job_text(driver) -> str:
