@@ -1,5 +1,7 @@
 from bs4 import BeautifulSoup
 from selenium import webdriver
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.action_chains import ActionChains
 import pandas as pd
 from typing import List
 from job_structs import IndeedJobInfo, CompanySiteInfo
@@ -262,6 +264,36 @@ class SearchScraper:
         df = pd.DataFrame(data=normalized_json, index=[0])
         return df.columns
 
+    def make_query(self, job_text: str, location_text: str):
+        """
+        Enters the job text and location text into the indeed search bar and presses enter.
+        Args:
+            job_text:
+            location_text:
+
+        Returns:
+        """
+        self.driver.get('https://www.indeed.com')
+        self.driver.implicitly_wait(WAIT_LONG)
+
+        # Enter input text into what/where search boxes
+        job_text_box = self.driver.find_element_by_id('text-input-what')
+        job_text_box.clear()
+        job_text_box.send_keys(job_text)
+        time.sleep(2)
+
+        location_text_box = self.driver.find_element_by_id('text-input-where')
+        location_text_box.clear()
+        for i in range(1):
+            location_text_box.send_keys(Keys.BACK_SPACE*30) # hacky fix because clear isn't working?
+        location_text_box.send_keys(location_text)
+        time.sleep(2)
+
+        # Hit the find jobs button!
+        find_jobs_button = self.driver.find_element_by_xpath('//button[text()="Find jobs"]')
+        find_jobs_button.click()
+        self.driver.implicitly_wait(WAIT_SHORT)
+
     def run(self, url: str, file_name: str):
         """
         Given a specific search URL
@@ -312,10 +344,12 @@ class SearchScraper:
 if __name__ == "__main__":
     search_scraper = SearchScraper()
 
+    search_scraper.make_query('Software Engineer', 'New York, NY')
+
     # Test that main data creation for one page works
-    # search_scraper.run(ALL_MLE_SEA_URL, 'job_data_mle_sea.csv')
-    search_scraper.run(ALL_SWE_NY_URL, 'job_data_swe_ny_test.csv')
-    # search_scraper.run(ALL_SWE_SEA_URL, 'job_data_swe_sea.csv')
+    # search_scraper.run(ALL_MLE_SEA_URL, 'output_files/job_data_mle_sea.csv')
+    # search_scraper.run(ALL_SWE_NY_URL, 'output_files/job_data_swe_ny_test.csv')
+    # search_scraper.run(ALL_SWE_SEA_URL, 'output_files/job_data_swe_sea.csv')
 
     # Test that pagination works
     # search_scraper.driver.get(search_url)
@@ -329,6 +363,6 @@ if __name__ == "__main__":
     #     search_scraper.driver.implicitly_wait(WAIT_SHORT)
     #     print("current_page: ", search_scraper.current_search_page)
 
-    search_scraper.driver.close()
+    # search_scraper.driver.close()
 
 # TODO: if fails to find element, fail elegantly rather than throw error
