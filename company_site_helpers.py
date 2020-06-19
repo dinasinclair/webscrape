@@ -80,10 +80,8 @@ class CompanySiteParser:
         try:
             embedded_iframe = driver.find_element_by_xpath('//iframe[contains(@src, "greenhouse")]')
             driver.switch_to.frame(embedded_iframe)
-            driver.implicitly_wait(WAIT_SHORT)
-            print("found and switched to iframe")
+            driver.implicitly_wait(WAIT_LONG)
             embedded_app = driver.find_element_by_xpath('//form[contains(@action, "greenhouse")]')
-            print("embedded app: ", embedded_app.get_attribute('innerHTML'))
             return CompanySiteParser.strip_html(embedded_app.get_attribute('innerHTML'))
         except NoSuchElementException:
             # Second method: look for a greenhouse link and follow it

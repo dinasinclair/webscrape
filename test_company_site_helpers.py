@@ -4,21 +4,15 @@ from selenium import webdriver
 from company_site_helpers import CompanySiteParser
 from constants import KEY_WORDS, WAIT_SHORT
 
-HTML_SHORT = """<html>
-<body>
-
+HTML_SHORT = """<html><body>
 <h1>Heading</h1>
 <p>Paragraph.</p>
+</body></html>"""
 
-</body>
-</html>"""
-
-HTML_LONG = """<html>
-<body>
+HTML_LONG = """<html><body>
 <h1>Let's talk about gender identity!</h1>
 <p>Do you indentify as non-binary? Nonbinary? cisgender? No problem!</p>
-</body>
-</html>"""
+</body></html>"""
 
 
 @pytest.fixture()
@@ -53,6 +47,24 @@ class TestCompanySiteParser:
         expected_dict['cisgender'] = 1
         stats_dict = CompanySiteParser.html_to_stats(HTML_LONG)
         assert stats_dict == expected_dict
+
+    def test_get_lever_job_text(self, driver):
+        driver.get(
+            'https://jobs.lever.co/grabango/7ff6e367-6523-4ca2-b630-57a46881e467/apply?lever-source=Glassdoor')
+        driver.implicitly_wait(WAIT_SHORT)
+        app_text = CompanySiteParser.get_lever_job_text(driver)
+        assert 'resume' in app_text
+
+    def test_get_lever_job_text_with_click(self, driver):
+        driver.get(
+            'https://jobs.lever.co/grabango/7ff6e367-6523-4ca2-b630-57a46881e467/apply?lever-source=Glassdoor')
+        driver.implicitly_wait(WAIT_SHORT)
+        app_text = CompanySiteParser.get_lever_job_text(driver)
+        assert 'resume' in app_text
+
+    def test_get_greenhouse_job_text(self, driver):
+        # TODO find a greenhouse example??
+        pass
 
     def test_get_embedded_greenhouse_job_text(self, driver):
         driver.get(
@@ -100,10 +112,7 @@ class TestCompanySiteParser:
 what do I want as a test?
 given link, can I
 (a) identify correct app type
-(b) given app type, link, get correct text
 
 so code structure should be
 (1) get_job_type(link) --> app_type: str
-(2) get_job_text(app_type
-
 '''

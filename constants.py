@@ -1,7 +1,17 @@
-# All MLE SEA
+'''
+Constants!!!
+'''
+
+# Machine Learning Engineer
 ALL_MLE_SEA_URL = 'https://www.indeed.com/q-machine-learning-engineer-l-Seattle,-WA-jobs.html'
-# All MLE SF
 ALL_MLE_SF_URL = 'https://www.indeed.com/jobs?q=machine+learning+engineer&l=San+Francisco%2C+CA'
+ALL_MLE_NY_URL = 'https://www.indeed.com/jobs?q=machine+learning+engineer&l=New+York%2C+NY'
+
+# Software Enginner
+ALL_SWE_SF_URL = 'https://www.indeed.com/jobs?q=software+engineer&l=San+Francisco%2C+CA'
+ALL_SWE_SEA_URL = 'https://www.indeed.com/jobs?q=software+engineer&l=Seattle%2C+WA'
+ALL_SWE_NY_URL = 'https://www.indeed.com/jobs?q=software+engineer&l=New+York%2C+NY'
+
 # Just Apply-Now Luminex (has generic binary gender, veteran, race extra questions)
 APPLY_NOW_LUMINEX_URL = 'https://www.indeed.com/jobs?q=machine+learning+engineer+luminex&l=Seattle%2C+WA'
 # Just Apply-Now Technosoft (Has only non-diversity extra questions)
@@ -30,4 +40,7 @@ KEY_WORDS = ["gender",
              "non-binary",
              "cisgender",
              "transgender",
+             "lgb",
+             "l.g.b.",
+             "woman",
              "diversity"]
