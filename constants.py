@@ -1,6 +1,6 @@
-'''
+"""
 Constants!!!
-'''
+"""
 
 # Machine Learning Engineer
 ALL_MLE_SEA_URL = 'https://www.indeed.com/q-machine-learning-engineer-l-Seattle,-WA-jobs.html'

@@ -3,6 +3,7 @@ from dataclasses_json import dataclass_json
 from datetime import datetime
 from typing import List, Dict
 
+
 @dataclass_json
 @dataclass
 class IndeedJobInfo:
@@ -31,7 +32,7 @@ class CompanySiteInfo:
 @dataclass_json
 @dataclass
 class QueryInfo:
-    query: str
+    query_text: str
     location: str
     time: datetime
-    result: List[IndeedJobInfo]
+    result_url: str

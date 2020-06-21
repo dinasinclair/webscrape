@@ -1,5 +1,5 @@
 import pytest
-from indeed import SearchScraper
+from JobRecorder import SearchScraper
 
 
 def test_example():

@@ -1,51 +1,30 @@
 from bs4 import BeautifulSoup
 from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.common.action_chains import ActionChains
 import pandas as pd
 from typing import List
 from job_structs import IndeedJobInfo, CompanySiteInfo
-from constants import WAIT_SHORT, WAIT_LONG, ALL_MLE_SEA_URL, ALL_MLE_SF_URL, ALL_MLE_NY_URL, ALL_SWE_SEA_URL, \
-    ALL_SWE_SF_URL, ALL_SWE_NY_URL
+from constants import WAIT_SHORT, WAIT_LONG, ALL_MLE_SEA_URL
 from company_site_helpers import CompanySiteParser
-
 from selenium.common.exceptions import NoSuchElementException, ElementClickInterceptedException
 import time
 
 
-class SearchScraper:
+class JobRecorder:
 
     def __init__(self):
         self.driver = webdriver.Chrome()
         self.pagination_limit = 10
         self.current_search_page = None
 
-    def print_all_iframes(self) -> None:
-        """Prints all iframes in a current driver page source.
-        Should not be in a class, should be a general tool"""
-        print("all iframes: ")
-        iframes = self.driver.find_elements_by_xpath("//iframe")
-        print("found {} frames".format(len(iframes)))
-        for frame in iframes:
-            print(frame)
-            print(frame.get_attribute('id'))
-            print(frame.get_attribute('title'))
-
-    def print_all_ids_avail(self) -> None:
+    def get_description(self, indeed_url: str) -> str:
         """
-        Prints all named ids of elements in the self.driver page source.
-        Should not be in a class, is a general tool (or at least, static)
+        Given a url to an indeed job posting, returns the string description of that posting.
+        Args:
+            indeed_url: string url to single job link.
 
         Returns:
-
+            cleaned string (not html) of job description.
         """
-        print("all ids:")
-        ids = self.driver.find_elements_by_xpath('//*[@id]')
-        for ii in ids:
-            # if 'apply' in ii.get_attribute('id'):
-            print(ii.get_attribute('id'))
-
-    def get_description(self, indeed_url: str) -> str:
         # Make sure you're on the indeed link page
         if self.driver.current_url != indeed_url:
             self.driver.get(indeed_url)
@@ -66,8 +45,9 @@ class SearchScraper:
         Returns: app type, url, text via CompanySiteInfo object
         """
         # Make sure you're on the indeed link page
-        self.driver.get(indeed_url)
-        self.driver.implicitly_wait(WAIT_LONG)
+        if self.driver.current_url != indeed_url:
+            self.driver.get(indeed_url)
+            self.driver.implicitly_wait(WAIT_LONG)
 
         # Check if this is an apply-now job
         is_apply_now = len(self.driver.find_elements_by_id('indeedApplyButtonContainer')) == 1
@@ -264,44 +244,14 @@ class SearchScraper:
         df = pd.DataFrame(data=normalized_json, index=[0])
         return df.columns
 
-    def make_query(self, job_text: str, location_text: str):
+    # TODO: rename this to write_all_jobs_to_db once I change it to write to db.
+    #  Maybe keep a write to file option around for now though?
+    def get_all_job_info(self, url: str, file_name: str) -> None:
         """
-        Enters the job text and location text into the indeed search bar and presses enter.
+        Given a specific search URL, writes posted job info to file_name.
         Args:
-            job_text:
-            location_text:
-
-        Returns:
-        """
-        self.driver.get('https://www.indeed.com')
-        self.driver.implicitly_wait(WAIT_LONG)
-
-        # Enter input text into what/where search boxes
-        job_text_box = self.driver.find_element_by_id('text-input-what')
-        job_text_box.clear()
-        job_text_box.send_keys(job_text)
-        time.sleep(2)
-
-        location_text_box = self.driver.find_element_by_id('text-input-where')
-        location_text_box.clear()
-        for i in range(1):
-            location_text_box.send_keys(Keys.BACK_SPACE*30) # hacky fix because clear isn't working?
-        location_text_box.send_keys(location_text)
-        time.sleep(2)
-
-        # Hit the find jobs button!
-        find_jobs_button = self.driver.find_element_by_xpath('//button[text()="Find jobs"]')
-        find_jobs_button.click()
-        self.driver.implicitly_wait(WAIT_SHORT)
-
-    def run(self, url: str, file_name: str):
-        """
-        Given a specific search URL
-        Args:
-            url:
-
-        Returns:
-
+            url: the url to the job query post entering text/loc and getting results.
+            file_name: name of file to save results to.
         """
         # Initialize counts and url position
         page_number = 1
@@ -340,29 +290,29 @@ class SearchScraper:
 
         print("Done!! :D")
 
+    def write_job_to_db(self, job_info: IndeedJobInfo, query_id: int) -> int:
+        # write job info to job table
+        pass
+
 
 if __name__ == "__main__":
-    search_scraper = SearchScraper()
-
-    search_scraper.make_query('Software Engineer', 'New York, NY')
+    job_recorder = JobRecorder()
 
     # Test that main data creation for one page works
-    # search_scraper.run(ALL_MLE_SEA_URL, 'output_files/job_data_mle_sea.csv')
-    # search_scraper.run(ALL_SWE_NY_URL, 'output_files/job_data_swe_ny_test.csv')
-    # search_scraper.run(ALL_SWE_SEA_URL, 'output_files/job_data_swe_sea.csv')
+    job_recorder.run(ALL_MLE_SEA_URL, 'output_files/job_data_mle_sea.csv')
+    # job_recorder.run(ALL_SWE_NY_URL, 'output_files/job_data_swe_ny.csv')
+    # job_recorder.run(ALL_SWE_SEA_URL, 'output_files/job_data_swe_sea.csv')
 
     # Test that pagination works
-    # search_scraper.driver.get(search_url)
-    # print("Is there a next page? ", search_scraper.next_page_exists())
-    # search_scraper.driver.implicitly_wait(WAIT_SHORT)
-    # if search_scraper.next_page_exists():
-    #     search_scraper.driver.implicitly_wait(WAIT_SHORT)
-    #     search_scraper.get_next_page()
-    #     search_scraper.driver.implicitly_wait(WAIT_SHORT)
-    #     print("driver url: ", search_scraper.driver.current_url)
-    #     search_scraper.driver.implicitly_wait(WAIT_SHORT)
-    #     print("current_page: ", search_scraper.current_search_page)
+    # job_recorder.driver.get(search_url)
+    # print("Is there a next page? ", job_recorder.next_page_exists())
+    # job_recorder.driver.implicitly_wait(WAIT_SHORT)
+    # if job_recorder.next_page_exists():
+    #     job_recorder.driver.implicitly_wait(WAIT_SHORT)
+    #     job_recorder.get_next_page()
+    #     job_recorder.driver.implicitly_wait(WAIT_SHORT)
+    #     print("driver url: ", job_recorder.driver.current_url)
+    #     job_recorder.driver.implicitly_wait(WAIT_SHORT)
+    #     print("current_page: ", job_recorder.current_search_page)
 
-    # search_scraper.driver.close()
-
-# TODO: if fails to find element, fail elegantly rather than throw error
+    job_recorder.driver.close()
