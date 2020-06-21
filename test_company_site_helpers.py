@@ -1,5 +1,4 @@
 import pytest
-from JobRecorder import SearchScraper
 from selenium import webdriver
 from company_site_helpers import CompanySiteParser
 from constants import KEY_WORDS, WAIT_SHORT

@@ -1,13 +1,15 @@
 import pytest
-from JobRecorder import SearchScraper
+from JobRecorder import JobRecorder
 
 
 def test_example():
     assert 4 == 4
 
+
 def test_search_scraper():
-    test_scraper = SearchScraper()
+    test_scraper = JobRecorder()
     assert test_scraper.pagination_limit == 10
+
 
 '''
 what do I want as a test?
