@@ -1,14 +1,14 @@
 import pytest
-from JobRecorder import JobRecorder
+from job_recorder import JobRecorder
 
 
 def test_example():
     assert 4 == 4
 
 
-def test_search_scraper():
-    test_scraper = JobRecorder()
-    assert test_scraper.pagination_limit == 10
+def test_job_recorder():
+    job_recorder = JobRecorder()
+    assert job_recorder.pagination_limit == 10
 
 
 '''
