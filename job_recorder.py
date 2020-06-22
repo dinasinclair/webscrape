@@ -4,6 +4,7 @@ from typing import List
 from job_structs import IndeedJobInfo, CompanySiteInfo
 from constants import WAIT_SHORT, WAIT_LONG, ALL_MLE_SEA_URL
 from company_site_helpers import CompanySiteParser
+from sql_queries import insert_into_jobs_table
 from selenium.common.exceptions import NoSuchElementException, ElementClickInterceptedException
 import time
 
@@ -160,14 +161,16 @@ class JobRecorder:
                                               'app_text': 'cannot parse'})
 
     def write_jobs_in_page_to_db(self,
-                     conn,
-                     soup: BeautifulSoup,
-                     page_number: int,
-                     query_id: int,
-                     verbose: bool = 0) -> List[IndeedJobInfo]:
+                                 conn,
+                                 soup: BeautifulSoup,
+                                 page_number: int,
+                                 query_id: int,
+                                 verbose: bool = 0) -> List[IndeedJobInfo]:
         """
         Collect all job page links from search results
         Args:
+            query_id:
+            conn:
             soup:
             page_number:
             verbose:
@@ -303,19 +306,8 @@ class JobRecorder:
         Returns:
 
         """
-        sql = ''' INSERT INTO tasks(query_id, \
-                                    app_type, \
-                                    app_text, \
-                                    company, \
-                                    title, \
-                                    description, \
-                                    company_url, \
-                                    indeed_url, \
-                                    page_number, \
-                                    rank_on_page)
-                  VALUES(?,?,?,?,?,?) '''
         cur = conn.cursor()
-        cur.execute(sql, (
+        cur.execute(insert_into_jobs_table, (
             query_id,
             job_info.app_type,
             job_info.app_text,
@@ -327,6 +319,8 @@ class JobRecorder:
             job_info.page_number,
             job_info.rank_on_page
         ))
+        conn.commit()
+        print("lastrow of jobs: ", cur.lastrowid)
         return cur.lastrowid
 
 

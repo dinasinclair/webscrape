@@ -3,17 +3,14 @@ from selenium.webdriver.common.keys import Keys
 from job_structs import QueryInfo
 from constants import WAIT_SHORT, WAIT_LONG
 from datetime import datetime
+from sql_queries import insert_into_queries_table
 
 from selenium.common.exceptions import NoSuchElementException
 import time
+import sqlite3
 
 
 class SearchRecorder:
-
-    def __init__(self):
-        self.driver = webdriver.Chrome()
-        self.pagination_limit = 10
-        self.current_search_page = None
 
     @staticmethod
     def return_error_query(query_text: str, location: str) -> QueryInfo:
@@ -31,12 +28,13 @@ class SearchRecorder:
 
         Returns:
         """
-        self.driver.get('https://www.indeed.com')
-        self.driver.implicitly_wait(WAIT_LONG)
+        driver = webdriver.Chrome()
+        driver.get('https://www.indeed.com')
+        driver.implicitly_wait(WAIT_LONG)
 
         # Enter input text into what/where search boxes
         try:
-            job_text_box = self.driver.find_element_by_id('text-input-what')
+            job_text_box = driver.find_element_by_id('text-input-what')
             job_text_box.clear()
             job_text_box.send_keys(query_text)
         except NoSuchElementException:
@@ -45,7 +43,7 @@ class SearchRecorder:
         time.sleep(2)
 
         try:
-            location_text_box = self.driver.find_element_by_id('text-input-where')
+            location_text_box = driver.find_element_by_id('text-input-where')
             location_text_box.clear()
             for i in range(1):
                 location_text_box.send_keys(Keys.BACK_SPACE * 30)  # hacky fix because clear isn't working?
@@ -57,17 +55,18 @@ class SearchRecorder:
 
         # Hit the find jobs button!
         try:
-            find_jobs_button = self.driver.find_element_by_xpath('//button[text()="Find jobs"]')
+            find_jobs_button = driver.find_element_by_xpath('//button[text()="Find jobs"]')
             find_jobs_button.click()
         except NoSuchElementException:
             print("Could not find the find jobs button for query {}, {}.".format(query_text, location))
             return self.return_error_query(query_text, location)
-        self.driver.implicitly_wait(WAIT_SHORT)
+        driver.implicitly_wait(WAIT_SHORT)
 
         query_info = QueryInfo.from_dict({'query_text': query_text,
                                           'location': location,
                                           'time': datetime.now(),
-                                          'result_url': self.driver.current_url})
+                                          'result_url': driver.current_url})
+        driver.close()
         return query_info
 
     @staticmethod
@@ -81,13 +80,11 @@ class SearchRecorder:
         Returns:
 
         """
-        sql = ''' INSERT INTO queries(query_text, location, time, result_url)
-                  VALUES(?,?,?,?) '''
         cur = conn.cursor()
-        cur.execute(sql, (query_info.query_text,
-                          query_info.location,
-                          query_info.time,
-                          query_info.result_url))
+        cur.execute(insert_into_queries_table, (query_info.query_text,
+                                                query_info.location,
+                                                query_info.time,
+                                                query_info.result_url))
         return cur.lastrowid
 
 
