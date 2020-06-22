@@ -165,7 +165,7 @@ class JobRecorder:
                                  soup: BeautifulSoup,
                                  page_number: int,
                                  query_id: int,
-                                 verbose: bool = 0) -> List[IndeedJobInfo]:
+                                 verbose: bool = True) -> List[IndeedJobInfo]:
         """
         Collect all job page links from search results
         Args:
@@ -228,10 +228,14 @@ class JobRecorder:
         """
         Returns: bool, true if there is a next page button.
         """
+        print("heyhey")
+        print("current search page: ", self.current_search_page)
         # Re-centers to search screen (rather than individual job pages)
         self.driver.implicitly_wait(WAIT_LONG)
         self.driver.get(self.current_search_page)
         self.driver.implicitly_wait(WAIT_LONG)
+
+        print("made it this far")
 
         # Looks through all aria labels (there's a "next" and "previous" if either exists)
         pagination = self.driver.find_elements_by_xpath("//*[@aria-label='Next']")

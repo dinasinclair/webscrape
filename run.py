@@ -1,5 +1,5 @@
 """
-TODO: This is where we'll actually run the search queries, pass
+Actually run the queries here \o/
 """
 
 from job_structs import QueryInfo, IndeedJobInfo
@@ -66,4 +66,4 @@ if __name__ == '__main__':
                                              'description': 'descriptive description'})
     orchestration.job_recorder.write_job_to_db(conn=orchestration.conn, job_info=test_job_info, query_id=17)
     orchestration.job_recorder.write_job_to_db(conn=orchestration.conn, job_info=test_job_info, query_id=42)
-    orchestration.run_single_query("Machine Learning Engineer", "Seattle, WA")
+    orchestration.run_single_query("Machine Learning Engineer", "New York, NY")

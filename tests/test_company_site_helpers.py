@@ -53,6 +53,7 @@ class TestCompanySiteParser:
         driver.implicitly_wait(WAIT_SHORT)
         app_text = CompanySiteParser.get_lever_job_text(driver)
         assert 'resume' in app_text
+        driver.close()
 
     def test_get_lever_job_text_with_click(self, driver):
         driver.get(
@@ -60,6 +61,7 @@ class TestCompanySiteParser:
         driver.implicitly_wait(WAIT_SHORT)
         app_text = CompanySiteParser.get_lever_job_text(driver)
         assert 'resume' in app_text
+        driver.close()
 
     def test_get_greenhouse_job_text(self, driver):
         # TODO find a greenhouse example??
@@ -71,6 +73,7 @@ class TestCompanySiteParser:
         driver.implicitly_wait(WAIT_SHORT)
         app_text = CompanySiteParser.get_embedded_greenhouse_job_text(driver)
         assert 'resume' in app_text
+        driver.close()
 
     def test_get_embedded_lever_job_text(self, driver):
         driver.get(
@@ -78,6 +81,7 @@ class TestCompanySiteParser:
         driver.implicitly_wait(WAIT_SHORT)
         app_text = CompanySiteParser.get_embedded_lever_job_text(driver)
         assert 'resume' in app_text
+        driver.close()
 
     def test_get_withgoogle_job_text(self, driver):
         driver.get(
@@ -92,6 +96,7 @@ class TestCompanySiteParser:
         driver.implicitly_wait(WAIT_SHORT)
         app_text = CompanySiteParser.get_bamboohr_job_text(driver)
         assert 'resume' in app_text
+        driver.close()
 
     def test_get_twitter_job_text(self, driver):
         driver.get(
@@ -105,6 +110,7 @@ class TestCompanySiteParser:
         driver.implicitly_wait(WAIT_SHORT)
         app_text = CompanySiteParser.get_facebook_job_text(driver)
         assert 'contact information' in app_text
+        driver.close()
 
 
 '''
