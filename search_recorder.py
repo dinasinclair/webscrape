@@ -70,9 +70,25 @@ class SearchRecorder:
                                           'result_url': self.driver.current_url})
         return query_info
 
-    def write_query_to_db(self, query_info: QueryInfo) -> int:
-        # TODO make this write to the query DB
-        pass
+    @staticmethod
+    def write_query_to_db(conn, query_info: QueryInfo) -> int:
+        """
+
+        Args:
+            conn:
+            query_info:
+
+        Returns:
+
+        """
+        sql = ''' INSERT INTO queries(query_text, location, time, result_url)
+                  VALUES(?,?,?,?) '''
+        cur = conn.cursor()
+        cur.execute(sql, (query_info.query_text,
+                          query_info.location,
+                          query_info.time,
+                          query_info.result_url))
+        return cur.lastrowid
 
 
 if __name__ == "__main__":

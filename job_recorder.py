@@ -1,6 +1,5 @@
 from bs4 import BeautifulSoup
 from selenium import webdriver
-import pandas as pd
 from typing import List
 from job_structs import IndeedJobInfo, CompanySiteInfo
 from constants import WAIT_SHORT, WAIT_LONG, ALL_MLE_SEA_URL
@@ -160,25 +159,46 @@ class JobRecorder:
                                               'app_url': self.driver.current_url,
                                               'app_text': 'cannot parse'})
 
-    def get_job_info(self, soup: BeautifulSoup, page_number: int) -> List[IndeedJobInfo]:
-        # Collect all job page links from search results
+    def write_jobs_in_page_to_db(self,
+                     conn,
+                     soup: BeautifulSoup,
+                     page_number: int,
+                     query_id: int,
+                     verbose: bool = 0) -> List[IndeedJobInfo]:
+        """
+        Collect all job page links from search results
+        Args:
+            soup:
+            page_number:
+            verbose:
+
+        Returns:
+
+        """
+        # Initialize arrays and page rank as needed
         jobs = []
         rank = 1
 
         print("grabbing all jobs in page!")
         for job in soup.findAll('div', class_="jobsearch-SerpJobCard unifiedRow row result clickcard"):
+            # Find relevant job details within the indeed job posting page
             location = job.find('div', class_="recJobLoc")['data-rc-loc']
             company = job.find('span', class_="company").text.strip()
-
-            print("processing job info for company ", company)
             title = job.find('a', class_="jobtitle turnstileLink")['title']
             indeed_url = 'http://indeed.com' + job.find('a', class_="jobtitle turnstileLink")['href']
-            print("indeed url: ", indeed_url)
-            company_site_info = self.get_company_site_info(indeed_url)
             description = self.get_description(indeed_url)
-            print("description: ", description)
+
+            # Find additional information as needed from the company site
+            company_site_info = self.get_company_site_info(indeed_url)
             stats = CompanySiteParser.html_to_stats(company_site_info.app_text)
 
+            if verbose:
+                print("processing job info for company ", company)
+                print("indeed url: ", indeed_url)
+                print("description: ", description)
+                print("This is a {} job".format(company_site_info.app_type))
+
+            # Save job in IndeedJobInfo format
             job_info = IndeedJobInfo.from_dict({'title': title,
                                                 'location': location,
                                                 'company': company,
@@ -190,9 +210,13 @@ class JobRecorder:
                                                 'app_text': company_site_info.app_text,
                                                 'stats': stats,
                                                 'description': description})
+
+            self.write_job_to_db(conn, job_info, query_id)
+            print("Processed job {} on page {}!".format(job_info.rank_on_page, page_number))
+
+            # Update jobs array and page ranking, making sure to wait after each job to be a friendly scraper!
             jobs += [job_info]
             rank += 1
-            print("This is a {} job".format(company_site_info.app_type))
             time.sleep(WAIT_SHORT)
 
         return jobs
@@ -238,61 +262,72 @@ class JobRecorder:
         self.driver.implicitly_wait(WAIT_SHORT)
         self.current_search_page = self.driver.current_url
 
-    @staticmethod
-    def get_column_names(job_info) -> List:
-        normalized_json = pd.json_normalize([job_info.to_dict()])
-        df = pd.DataFrame(data=normalized_json, index=[0])
-        return df.columns
-
-    # TODO: rename this to write_all_jobs_to_db once I change it to write to db.
-    #  Maybe keep a write to file option around for now though?
-    def get_all_job_info(self, url: str, file_name: str) -> None:
+    def write_all_jobs_to_db(self, query_url: str, conn, query_id: int) -> None:
         """
-        Given a specific search URL, writes posted job info to file_name.
+        Writes all jobs to DB for a given query url.
         Args:
-            url: the url to the job query post entering text/loc and getting results.
-            file_name: name of file to save results to.
+            query_url: url of initial query page with jobs returned
+            conn: connection to the job DB
+            query_id: int ID identifying the query instance
+
+        Returns:
+            None, just writes to DB
         """
         # Initialize counts and url position
         page_number = 1
-        self.driver.get(url)
-        self.current_search_page = url
+        self.driver.get(query_url)
+        self.current_search_page = query_url
 
-        # Parse HTML, grab all job info on page
-        soup = BeautifulSoup(self.driver.page_source, "html.parser")
-        jobs_on_page = self.get_job_info(soup, page_number)
+        while page_number <= self.pagination_limit:
+            # Get all jobs on current page
+            soup = BeautifulSoup(self.driver.page_source, "html.parser")
+            self.write_jobs_in_page_to_db(conn, soup, page_number, query_id)
 
-        # Initialize df where we'll store the data
-        columns = self.get_column_names(jobs_on_page[0])
-        df = pd.DataFrame(columns=columns)
-        df.to_csv(file_name)
-        self.driver.implicitly_wait(WAIT_LONG)
-
-        while True:
-            # Put this page's jobs into dataframe, save
-            for job in jobs_on_page:
-                # Turn job info struct into a json
-                normalized_json = pd.json_normalize([job.to_dict()])
-                # Note: passing index 0 okay because we're creating a one row df
-                new_line_df = pd.DataFrame(data=normalized_json, index=[0])
-                new_line_df.to_csv(file_name, mode='a', header=False)
-                print("Processed job {} on page {}!".format(job.rank_on_page, page_number))
-
-            # Repeat as long as there's another page to grab and we're under the limit
-            if not self.next_page_exists() or page_number >= self.pagination_limit:
-                break
-            else:
-                # Get next page of jobs!
+            # Get next page of jobs, if it exists! Otherwise you're done with this query
+            if self.next_page_exists():
                 self.get_next_page()
                 page_number += 1
-                soup = BeautifulSoup(self.driver.page_source, "html.parser")
-                jobs_on_page = self.get_job_info(soup, page_number)
-
+            else:
+                break
         print("Done!! :D")
 
-    def write_job_to_db(self, job_info: IndeedJobInfo, query_id: int) -> int:
-        # write job info to job table
-        pass
+    @staticmethod
+    def write_job_to_db(conn, job_info: IndeedJobInfo, query_id: int):
+        """
+
+        Args:
+            conn:
+            job_info:
+            query_id:
+
+        Returns:
+
+        """
+        sql = ''' INSERT INTO tasks(query_id, \
+                                    app_type, \
+                                    app_text, \
+                                    company, \
+                                    title, \
+                                    description, \
+                                    company_url, \
+                                    indeed_url, \
+                                    page_number, \
+                                    rank_on_page)
+                  VALUES(?,?,?,?,?,?) '''
+        cur = conn.cursor()
+        cur.execute(sql, (
+            query_id,
+            job_info.app_type,
+            job_info.app_text,
+            job_info.company,
+            job_info.title,
+            job_info.description,
+            job_info.company_url,
+            job_info.indeed_url,
+            job_info.page_number,
+            job_info.rank_on_page
+        ))
+        return cur.lastrowid
 
 
 if __name__ == "__main__":
@@ -316,3 +351,53 @@ if __name__ == "__main__":
     #     print("current_page: ", job_recorder.current_search_page)
 
     job_recorder.driver.close()
+
+    # @staticmethod
+    # def get_column_names(job_info) -> List:
+    #     normalized_json = pd.json_normalize([job_info.to_dict()])
+    #     df = pd.DataFrame(data=normalized_json, index=[0])
+    #     return df.columns
+    #
+    # def write_all_jobs_to_csv(self, url: str, file_name: str) -> None:
+    #     """
+    #     Given a specific search URL, writes posted job info to file_name.
+    #     Args:
+    #         url: the url to the job query post entering text/loc and getting results.
+    #         file_name: name of file to save results to.
+    #     """
+    #     # Initialize counts and url position
+    #     page_number = 1
+    #     self.driver.get(url)
+    #     self.current_search_page = url
+    #
+    #     # Parse HTML, grab all job info on page
+    #     soup = BeautifulSoup(self.driver.page_source, "html.parser")
+    #     jobs_on_page = self.get_job_info(soup, page_number)
+    #
+    #     # Initialize df where we'll store the data
+    #     columns = self.get_column_names(jobs_on_page[0])
+    #     df = pd.DataFrame(columns=columns)
+    #     df.to_csv(file_name)
+    #     self.driver.implicitly_wait(WAIT_LONG)
+    #
+    #     while True:
+    #         # Put this page's jobs into dataframe, save
+    #         for job in jobs_on_page:
+    #             # Turn job info struct into a json
+    #             normalized_json = pd.json_normalize([job.to_dict()])
+    #             # Note: passing index 0 okay because we're creating a one row df
+    #             new_line_df = pd.DataFrame(data=normalized_json, index=[0])
+    #             new_line_df.to_csv(file_name, mode='a', header=False)
+    #             print("Processed job {} on page {}!".format(job.rank_on_page, page_number))
+    #
+    #         # Repeat as long as there's another page to grab and we're under the limit
+    #         if not self.next_page_exists() or page_number >= self.pagination_limit:
+    #             break
+    #         else:
+    #             # Get next page of jobs!
+    #             self.get_next_page()
+    #             page_number += 1
+    #             soup = BeautifulSoup(self.driver.page_source, "html.parser")
+    #             jobs_on_page = self.get_job_info(soup, page_number)
+    #
+    #     print("Done!! :D")

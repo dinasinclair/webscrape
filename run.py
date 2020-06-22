@@ -24,61 +24,10 @@ def create_connection(db_file):
     return conn
 
 
-def write_query_to_db(conn, query_info: QueryInfo):
-    """
-
-    Args:
-        conn:
-        query_info:
-
-    Returns:
-
-    """
-    sql = ''' INSERT INTO queries(query_text, location, time, result_url)
-              VALUES(?,?,?,?) '''
-    cur = conn.cursor()
-    cur.execute(sql, (query_info.query_text,
-                      query_info.location,
-                      query_info.time,
-                      query_info.result_url))
-    return cur.lastrowid
 
 
-def create_task(conn, job_info: IndeedJobInfo, query_id: int):
-    """
 
-    Args:
-        conn: 
-        job_info:
 
-    Returns:
-
-    """
-    sql = ''' INSERT INTO tasks(query_id, \
-                                app_type, \
-                                app_text, \
-                                company, \
-                                title, \
-                                description, \
-                                company_url, \
-                                indeed_url, \
-                                page_number, \
-                                rank_on_page)
-              VALUES(?,?,?,?,?,?) '''
-    cur = conn.cursor()
-    cur.execute(sql, (
-        query_id,
-        job_info.app_type,
-        job_info.app_text,
-        job_info.company,
-        job_info.title,
-        job_info.description,
-        job_info.company_url,
-        job_info.indeed_url,
-        job_info.page_number,
-        job_info.rank_on_page
-    ))
-    return cur.lastrowid
 
 
 class Orchestration:
@@ -93,4 +42,4 @@ class Orchestration:
         query_id = self.search_recorder.write_query_to_db(query_info)
 
         # Next, write the query job results to the DB
-        self.job_recorder.get_all_job_info(query_info.result_url, "pretend_file_until_I_pass_in_query_ID")
+        self.job_recorder.write_all_jobs_to_db(query_info.result_url, conn, query_id)
