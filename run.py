@@ -19,11 +19,11 @@ class Orchestration:
 
     def run_single_query(self, query_text: str, location: str):
         # First, make the query and write the query info to the DB
-        query_info = self.search_recorder.make_query(query_text, location)
-        query_id = self.search_recorder.write_query_to_db(query_info)
+        query_info = self.search_recorder.make_query(query_text=query_text, location=location)
+        query_id = self.search_recorder.write_query_to_db(conn=self.conn, query_info=query_info)
 
         # Next, write the query job results to the DB
-        self.job_recorder.write_all_jobs_to_db(query_info.result_url, query_id)
+        self.job_recorder.write_all_jobs_to_db(query_url=query_info.result_url, conn=self.conn, query_id=query_id)
 
     def run_all_queries(self, query_text_list: List[str], location_list: List[str]):
         for query_text in query_text_list:
@@ -66,5 +66,4 @@ if __name__ == '__main__':
                                              'description': 'descriptive description'})
     orchestration.job_recorder.write_job_to_db(conn=orchestration.conn, job_info=test_job_info, query_id=17)
     orchestration.job_recorder.write_job_to_db(conn=orchestration.conn, job_info=test_job_info, query_id=42)
-    print("done")
-    # orchestration.run_single_query("Machine Learning Engineer", "Seattle, WA")
+    orchestration.run_single_query("Machine Learning Engineer", "Seattle, WA")
