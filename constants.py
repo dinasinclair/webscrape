@@ -28,6 +28,11 @@ APPLY_ON_COMPANY_SITE_ACLU = 'https://www.indeed.com/jobs?q=aclu+engineer&l='
 APPLY_NB = 'https://jobs.lever.co/innovateschools/c142ef0c-c426-4c8d-b06c-eb672075cc98/apply'
 # Square is an example of a smartrecruiters job with pronoun questions!
 
+# Edge case searches for tests
+SEARCH_WITH_NO_RESULTS = 'https://www.indeed.com/jobs?q=thisisnotajob&l=Seattle%2C+WA'
+MLE_SEA_SECOND_PAGE = 'https://www.indeed.com/jobs?q=Machine+Learning+Engineer&l=Seattle%2C+WA&start=10'
+
+
 WAIT_LONG = 10
 WAIT_SHORT = 5
 

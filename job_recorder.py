@@ -7,14 +7,17 @@ from company_site_helpers import CompanySiteParser
 from sql_queries import insert_into_jobs_table
 from selenium.common.exceptions import NoSuchElementException, ElementClickInterceptedException
 import time
+import debugging_tools
 
 
 class JobRecorder:
 
-    def __init__(self):
+    def __init__(self, current_search_page: str = None):
         self.driver = webdriver.Chrome()
         self.pagination_limit = 10
-        self.current_search_page = None
+        self.current_search_page = current_search_page
+        if self.current_search_page is not None:
+            self.driver.get(current_search_page)
 
     def get_description(self, indeed_url: str) -> str:
         """
@@ -228,14 +231,10 @@ class JobRecorder:
         """
         Returns: bool, true if there is a next page button.
         """
-        print("heyhey")
-        print("current search page: ", self.current_search_page)
         # Re-centers to search screen (rather than individual job pages)
         self.driver.implicitly_wait(WAIT_LONG)
         self.driver.get(self.current_search_page)
         self.driver.implicitly_wait(WAIT_LONG)
-
-        print("made it this far")
 
         # Looks through all aria labels (there's a "next" and "previous" if either exists)
         pagination = self.driver.find_elements_by_xpath("//*[@aria-label='Next']")
@@ -253,15 +252,22 @@ class JobRecorder:
         Navigates to next page of indeed job postings.
         Returns: None
         """
-        self.driver.implicitly_wait(WAIT_LONG)
+        # self.driver.implicitly_wait(WAIT_LONG)
         # TODO: is this the right error handling method? idk if it just prints but continues...
         try:
             next_page_button = self.driver.find_element_by_xpath("//*[@aria-label='Next']")
+            print(next_page_button)
+            time.sleep(10)
             next_page_button.click()
-        except ElementClickInterceptedException:
+        except ElementClickInterceptedException as e:
             print("oh no, popup!")
-            close_window_button = self.driver.find_element_by_id('popover-x')
-            close_window_button.click()
+            print(e)
+            time.sleep(3)
+            try:
+                close_window_button = self.driver.find_element_by_id('popover-x')
+                close_window_button.click()
+            
+            print("clicked popup button to go away")
             self.driver.implicitly_wait(WAIT_LONG)
             next_page_button = self.driver.find_element_by_xpath("//*[@aria-label='Next']")
             next_page_button.click()
