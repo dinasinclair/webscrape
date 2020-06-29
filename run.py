@@ -1,5 +1,5 @@
 """
-Actually run the queries here \o/
+Actually run the queries here yay
 """
 
 from job_structs import QueryInfo, IndeedJobInfo
@@ -41,9 +41,10 @@ class Orchestration:
             print("Unable to connect to the database.")
             raise
 
-    def create_table(self, create_table_sql):
+    @staticmethod
+    def create_table(conn, create_table_sql):
         try:
-            c = self.conn.cursor()
+            c = conn.cursor()
             c.execute(create_table_sql)
         except sqlite3.Error as e:
             print(e)
@@ -51,8 +52,8 @@ class Orchestration:
 
 if __name__ == '__main__':
     orchestration = Orchestration()
-    orchestration.create_table(create_jobs_table)
-    orchestration.create_table(create_queries_table)
+    orchestration.create_table(orchestration.conn, create_jobs_table)
+    orchestration.create_table(orchestration.conn, create_queries_table)
     test_job_info = IndeedJobInfo.from_dict({'title': 'test title',
                                              'location': 'this is a location',
                                              'company': 'oooh a company',

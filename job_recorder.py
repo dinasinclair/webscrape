@@ -253,27 +253,47 @@ class JobRecorder:
         Returns: None
         """
         # self.driver.implicitly_wait(WAIT_LONG)
-        # TODO: is this the right error handling method? idk if it just prints but continues...
+
         try:
             next_page_button = self.driver.find_element_by_xpath("//*[@aria-label='Next']")
             print(next_page_button)
-            time.sleep(10)
+            time.sleep(1)
             next_page_button.click()
         except ElementClickInterceptedException as e:
             print("oh no, popup!")
-            print(e)
-            time.sleep(3)
-            try:
-                close_window_button = self.driver.find_element_by_id('popover-x')
-                close_window_button.click()
-            
-            print("clicked popup button to go away")
-            self.driver.implicitly_wait(WAIT_LONG)
-            next_page_button = self.driver.find_element_by_xpath("//*[@aria-label='Next']")
-            next_page_button.click()
+            self.driver.implicitly_wait(WAIT_SHORT)
+            self.remove_legal_popup()
+            self.driver.implicitly_wait(WAIT_SHORT)
+            self.remove_popover_popup()
+            self.driver.implicitly_wait(WAIT_SHORT)
 
+        # Click the next page button after removing popups!
+        self.driver.implicitly_wait(WAIT_SHORT)
+        next_page_button = self.driver.find_element_by_xpath("//*[@aria-label='Next']")
+        next_page_button.click()
         self.driver.implicitly_wait(WAIT_SHORT)
         self.current_search_page = self.driver.current_url
+
+    def remove_legal_popup(self) -> None:
+        # This gets rid of the banner with id "icl-LegalConsentBanner-body"
+        try:
+            dismiss_legal_popup_button = self.driver.find_element_by_xpath("//button[text()='Dismiss']")
+            dismiss_legal_popup_button.click()
+            self.driver.implicitly_wait(WAIT_SHORT)
+            print("closed legal consent popup!")
+        except NoSuchElementException:
+            print("Didn't find a legal consent popup.")
+            pass
+
+    def remove_popover_popup(self) -> None:
+        try:
+            close_window_button = self.driver.find_element_by_id('popover-x')
+            close_window_button.click()
+            self.driver.implicitly_wait(WAIT_SHORT)
+            print("closed popup via popover-x button!")
+        except NoSuchElementException:
+            print("Didn't find a popover-x popup.")
+            pass
 
     def write_all_jobs_to_db(self, query_url: str, conn, query_id: int) -> None:
         """
