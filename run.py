@@ -54,17 +54,4 @@ if __name__ == '__main__':
     orchestration = Orchestration()
     orchestration.create_table(orchestration.conn, create_jobs_table)
     orchestration.create_table(orchestration.conn, create_queries_table)
-    test_job_info = IndeedJobInfo.from_dict({'title': 'test title',
-                                             'location': 'this is a location',
-                                             'company': 'oooh a company',
-                                             'indeed_url': 'www.pretendurl.com',
-                                             'page_number': 3,
-                                             'rank_on_page': 23,
-                                             'app_type': 'apply_now',
-                                             'company_url': 'www.applyhere.com',
-                                             'app_text': 'this is some app text',
-                                             'stats': {'this_stat': 24, 'that_stat': 12},
-                                             'description': 'descriptive description'})
-    orchestration.job_recorder.write_job_to_db(conn=orchestration.conn, job_info=test_job_info, query_id=17)
-    orchestration.job_recorder.write_job_to_db(conn=orchestration.conn, job_info=test_job_info, query_id=42)
-    orchestration.run_single_query("Machine Learning Engineer", "New York, NY")
+    orchestration.run_single_query("Machine Learning Engineer", "Seattle, WA")

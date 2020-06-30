@@ -1,7 +1,9 @@
 from constants import WAIT_SHORT, WAIT_LONG, KEY_WORDS
 from bs4 import BeautifulSoup
 from typing import Dict
-from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import NoSuchElementException, ElementClickInterceptedException
+import popup_helpers
+import time
 
 
 class CompanySiteParser:
@@ -36,11 +38,26 @@ class CompanySiteParser:
         Assumes driver is already at an apply now job url.
         Returns: IndeedJobInfo object with job details.
         """
-        # Find apply button for apply-now scenario
-        apply_button = driver.find_element_by_id('indeedApplyButtonContainer')
 
-        # Click on apply button for apply-now
-        apply_button.click()
+        try:
+            # Find apply button for apply-now scenario
+            apply_button = driver.find_element_by_id('indeedApplyButtonContainer')
+            time.sleep(1)
+            apply_button.click()
+        except ElementClickInterceptedException as e:
+            print("oh no, popup during apply_now click!")
+            driver.implicitly_wait(WAIT_SHORT)
+            popup_helpers.remove_legal_popup(driver)
+            driver.implicitly_wait(WAIT_SHORT)
+            popup_helpers.remove_popover_popup(driver)
+            driver.implicitly_wait(WAIT_SHORT)
+
+            # Click the next page button after removing popups! Hope there's no error now...
+            apply_button = driver.find_element_by_id('indeedApplyButtonContainer')
+            time.sleep(1)
+            apply_button.click()
+
+        # Find that apply now text in the right iframe!
         driver.implicitly_wait(WAIT_SHORT)
         iframe = driver.find_element_by_xpath("//iframe[@title='No content']")
         driver.switch_to.frame(iframe)
