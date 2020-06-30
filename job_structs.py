@@ -32,7 +32,9 @@ class CompanySiteInfo:
 @dataclass_json
 @dataclass
 class QueryInfo:
+    scraper_version: str
     query_text: str
     location: str
     time: datetime
     result_url: str
+    total_hits: int

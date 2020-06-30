@@ -1,13 +1,12 @@
 """
 Actually run the queries here yay
 """
-
-from job_structs import QueryInfo, IndeedJobInfo
 from sql_queries import create_jobs_table, create_queries_table
 from search_recorder import SearchRecorder
 from job_recorder import JobRecorder
 from typing import List
 import sqlite3
+from constants import DB_PATH
 
 
 class Orchestration:
@@ -31,27 +30,27 @@ class Orchestration:
                 self.run_single_query(query_text, location)
 
     @staticmethod
-    def create_db_connection(db_file: str = 'db/job_posting_data.db') -> sqlite3.Connection:
+    def create_db_connection(db_file: str = DB_PATH) -> sqlite3.Connection:
         """ create a database connection to a SQLite database """
         try:
             conn = sqlite3.connect(db_file)
             print("Connected to ", db_file, " using sqlite3 version ", sqlite3.version)
             return conn
-        except sqlite3.Error as e:
+        except sqlite3.Error:
             print("Unable to connect to the database.")
             raise
 
     @staticmethod
-    def create_table(conn, create_table_sql):
+    def execute_sql(conn, sql_query):
         try:
             c = conn.cursor()
-            c.execute(create_table_sql)
+            c.execute(sql_query)
         except sqlite3.Error as e:
             print(e)
 
 
 if __name__ == '__main__':
     orchestration = Orchestration()
-    orchestration.create_table(orchestration.conn, create_jobs_table)
-    orchestration.create_table(orchestration.conn, create_queries_table)
+    orchestration.execute_sql(orchestration.conn, create_jobs_table)
+    orchestration.execute_sql(orchestration.conn, create_queries_table)
     orchestration.run_single_query("Machine Learning Engineer", "Seattle, WA")

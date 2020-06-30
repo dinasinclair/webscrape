@@ -1,7 +1,7 @@
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from job_structs import QueryInfo
-from constants import WAIT_SHORT, WAIT_LONG
+from constants import WAIT_SHORT, WAIT_LONG, VERSION
 from datetime import datetime
 from sql_queries import insert_into_queries_table
 
@@ -62,10 +62,24 @@ class SearchRecorder:
             return self.return_error_query(query_text, location)
         driver.implicitly_wait(WAIT_SHORT)
 
-        query_info = QueryInfo.from_dict({'query_text': query_text,
+        # Find the total number of job hits!
+        try:
+            num_hits_elem = driver.find_element_by_id('searchCountPages')
+            num_hits_text_list = num_hits_elem.text.split()
+            if len(num_hits_text_list) != 5:
+                print("Num hits text not in expected format. Found: ", num_hits_text_list)
+            print("as a list: ", num_hits_text_list)
+            total_hits = num_hits_text_list[3].replace(",", "")
+            print("Total hits: ", total_hits)
+        except NoSuchElementException:
+            total_hits = None
+
+        query_info = QueryInfo.from_dict({'scraper_version': VERSION,
+                                          'query_text': query_text,
                                           'location': location,
                                           'time': datetime.now(),
-                                          'result_url': driver.current_url})
+                                          'result_url': driver.current_url,
+                                          'total_hits': total_hits})
         driver.close()
         return query_info
 
@@ -81,10 +95,12 @@ class SearchRecorder:
 
         """
         cur = conn.cursor()
-        cur.execute(insert_into_queries_table, (query_info.query_text,
+        cur.execute(insert_into_queries_table, (query_info.scraper_version,
+                                                query_info.query_text,
                                                 query_info.location,
                                                 query_info.time,
-                                                query_info.result_url))
+                                                query_info.result_url,
+                                                query_info.total_hits))
         return cur.lastrowid
 
 

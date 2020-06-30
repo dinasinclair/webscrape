@@ -2,6 +2,10 @@
 Constants!!!
 """
 
+# Code version, used in query table. Update as progress is made!!!
+VERSION = '1.0.0'
+DB_PATH = 'db/scraper_data_v1.db'
+
 # Machine Learning Engineer
 ALL_MLE_SEA_URL = 'https://www.indeed.com/q-machine-learning-engineer-l-Seattle,-WA-jobs.html'
 ALL_MLE_SF_URL = 'https://www.indeed.com/jobs?q=machine+learning+engineer&l=San+Francisco%2C+CA'
