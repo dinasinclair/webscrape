@@ -5,6 +5,7 @@ from selenium.common.exceptions import NoSuchElementException, ElementClickInter
 import popup_helpers
 import time
 import logging
+import debugging_tools
 
 
 class CompanySiteParser:
@@ -40,27 +41,18 @@ class CompanySiteParser:
         try:
             # Find apply button for apply-now scenario
             apply_button = driver.find_element_by_id('indeedApplyButtonContainer')
-            time.sleep(1)
+            driver.implicitly_wait(WAIT_SHORT)
             apply_button.click()
         except ElementClickInterceptedException as e:
             logging.warning("oh no, popup during apply_now click!")
-            driver.implicitly_wait(WAIT_SHORT)
-            popup_helpers.remove_legal_popup(driver)
-            driver.implicitly_wait(WAIT_SHORT)
-            popup_helpers.remove_popover_popup(driver)
-            driver.implicitly_wait(WAIT_SHORT)
 
-            # TODO(dsinc) clean this up, but for now trying popup cleanup 2x because it still fails?
-            time.sleep(1)
-            logging.warning("trying to close legal popup a second time just in case!")
-            popup_helpers.remove_legal_popup(driver)
-            driver.implicitly_wait(WAIT_SHORT)
+            # Remove potential pop ups
+            popup_helpers.remove_all_popups(driver)
 
-            # Click the next page button after removing popups! Hope there's no error now...
-            time.sleep(1)
+            # Click apply_now button using script to avoid ElementClickInterceptedException errors
             apply_button = driver.find_element_by_id('indeedApplyButtonContainer')
-            time.sleep(1)
-            apply_button.click()
+            driver.implicitly_wait(WAIT_SHORT)
+            driver.execute_script("arguments[0].click();", apply_button)
 
         # Find that apply now text in the right iframe!
         driver.implicitly_wait(WAIT_SHORT)

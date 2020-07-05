@@ -199,7 +199,7 @@ class JobRecorder:
             stats = CompanySiteParser.html_to_stats(company_site_info.app_text)
 
             # Quick log of job info
-            logging.info(f"processing job info for company {company}")
+            logging.info(f"processing {title} at {company}")
             logging.info(f"This is a {company_site_info.app_type} job")
             logging.debug(f"indeed url: {indeed_url}")
             logging.debug(f"description: {description}")
@@ -252,8 +252,6 @@ class JobRecorder:
         Navigates to next page of indeed job postings.
         Returns: None
         """
-        # self.driver.implicitly_wait(WAIT_LONG)
-
         try:
             next_page_button = self.driver.find_element_by_xpath("//*[@aria-label='Next']")
             logging.debug(f"Next page button element: {next_page_button}")
@@ -261,23 +259,14 @@ class JobRecorder:
             next_page_button.click()
         except ElementClickInterceptedException as e:
             logging.warning("oh no, popup during next page click!")
-            self.driver.implicitly_wait(WAIT_SHORT)
-            popup_helpers.remove_legal_popup(self.driver)
-            self.driver.implicitly_wait(WAIT_SHORT)
-            popup_helpers.remove_popover_popup(self.driver)
-            self.driver.implicitly_wait(WAIT_SHORT)
 
-            # TODO(dsinc) make this cleaner, for now we're just trying the above code 2x to try to stop fails?
-            time.sleep(1)
-            logging.warning("Trying to close legal popups a second time, just in case!")
-            popup_helpers.remove_legal_popup(self.driver)
-            self.driver.implicitly_wait(WAIT_SHORT)
-            time.sleep(1)
+            # Remove potential pop ups!
+            popup_helpers.remove_all_popups(self.driver)
 
-            # Click the next page button after removing popups! Hope there's no error now...
-            self.driver.implicitly_wait(WAIT_SHORT)
+            # Click next page button using script to avoid ElementClickInterceptedException errors
             next_page_button = self.driver.find_element_by_xpath("//*[@aria-label='Next']")
-            next_page_button.click()
+            self.driver.implicitly_wait(WAIT_SHORT)
+            self.driver.execute_script("arguments[0].click();", next_page_button)
 
         self.driver.implicitly_wait(WAIT_SHORT)
         self.current_search_page = self.driver.current_url

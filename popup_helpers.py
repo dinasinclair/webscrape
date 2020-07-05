@@ -3,6 +3,22 @@ from selenium.common.exceptions import NoSuchElementException, ElementClickInter
 import logging
 
 
+def remove_all_popups(driver) -> None:
+    """
+    Tries to remove any possible popup encountered thus far by the webscraper.
+    Args:
+        driver:
+
+    Returns:
+
+    """
+    driver.implicitly_wait(WAIT_SHORT)
+    remove_legal_popup(driver)
+    driver.implicitly_wait(WAIT_SHORT)
+    remove_popover_popup(driver)
+    driver.implicitly_wait(WAIT_SHORT)
+
+
 def remove_legal_popup(driver) -> None:
     # This gets rid of the banner with id "icl-LegalConsentBanner-body"
     try:
@@ -12,7 +28,6 @@ def remove_legal_popup(driver) -> None:
         logging.warning("closed legal consent popup!")
     except NoSuchElementException:
         logging.info("Didn't find a legal consent popup.")
-        pass
 
 
 def remove_popover_popup(driver) -> None:
