@@ -2,9 +2,9 @@
 Constants!!!
 """
 
-# Code version, used in query table. Update as progress is made!!!
-VERSION = '1.0.0'
-DB_PATH = 'db/scraper_data_v1.db'
+# Code version, used in database to keep track of code status at time of info collection.
+VERSION = '1.0.1'
+DB_PATH = 'db/scraper_data_v{}.db'.format(VERSION[0])
 
 # Machine Learning Engineer
 ALL_MLE_SEA_URL = 'https://www.indeed.com/q-machine-learning-engineer-l-Seattle,-WA-jobs.html'
