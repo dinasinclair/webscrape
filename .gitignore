@@ -1,0 +1,9 @@
+# Logs that I don't feel the need to keep
+geckodriver.log
+
+# Pycache (faster binaries) content
+tests/__pycache__/*A
+__pychache__/*
+
+# Mac folder info
+.DS_Store/*
