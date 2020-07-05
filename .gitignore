@@ -2,8 +2,8 @@
 geckodriver.log
 
 # Pycache (faster binaries) content
-tests/__pycache__/*
-__pychache__/*
+tests/__pycache__/
+__pycache__/
 
 # Mac folder info
-.DS_Store/*
+.DS_Store
