@@ -4,10 +4,9 @@ from job_structs import QueryInfo
 from constants import WAIT_SHORT, WAIT_LONG, VERSION
 from datetime import datetime
 from sql_queries import insert_into_queries_table
-
 from selenium.common.exceptions import NoSuchElementException
 import time
-import sqlite3
+import logging
 
 
 class SearchRecorder:
@@ -38,7 +37,7 @@ class SearchRecorder:
             job_text_box.clear()
             job_text_box.send_keys(query_text)
         except NoSuchElementException:
-            print("Could not find the query text box for query {}, {}.".format(query_text, location))
+            logging.error(f"Could not find the query text box for query {query_text}, {location}.")
             return self.return_error_query(query_text, location)
         time.sleep(2)
 
@@ -49,7 +48,7 @@ class SearchRecorder:
                 location_text_box.send_keys(Keys.BACK_SPACE * 30)  # hacky fix because clear isn't working?
             location_text_box.send_keys(location)
         except NoSuchElementException:
-            print("Could not find the location text box for query {}, {}.".format(query_text, location))
+            logging.error(f"Could not find the location text box for query {query_text}, {location}.")
             return self.return_error_query(query_text, location)
         time.sleep(2)
 
@@ -58,7 +57,7 @@ class SearchRecorder:
             find_jobs_button = driver.find_element_by_xpath('//button[text()="Find jobs"]')
             find_jobs_button.click()
         except NoSuchElementException:
-            print("Could not find the find jobs button for query {}, {}.".format(query_text, location))
+            logging.error(f"Could not find the find jobs button for query {query_text}, {location}.")
             return self.return_error_query(query_text, location)
         driver.implicitly_wait(WAIT_SHORT)
 
@@ -67,10 +66,9 @@ class SearchRecorder:
             num_hits_elem = driver.find_element_by_id('searchCountPages')
             num_hits_text_list = num_hits_elem.text.split()
             if len(num_hits_text_list) != 5:
-                print("Num hits text not in expected format. Found: ", num_hits_text_list)
-            print("as a list: ", num_hits_text_list)
+                logging.error(f"Num hits text not in expected format. Found: {num_hits_text_list}.")
             total_hits = num_hits_text_list[3].replace(",", "")
-            print("Total hits: ", total_hits)
+            logging.info(f"Total job hits found for this query: {total_hits}")
         except NoSuchElementException:
             total_hits = None
 

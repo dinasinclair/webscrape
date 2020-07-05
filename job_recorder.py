@@ -9,6 +9,7 @@ from selenium.common.exceptions import NoSuchElementException, ElementClickInter
 import time
 import popup_helpers
 import debugging_tools
+import logging
 
 
 class JobRecorder:
@@ -38,8 +39,8 @@ class JobRecorder:
         try:
             description = self.driver.find_element_by_id('jobDescriptionText')
         except NoSuchElementException:
-            print("error finding description")
-            description = "Error finding description"
+            logging.warning(f"NoSuchElementException while finding job description at url {indeed_url}")
+            return "Error finding description"
         return CompanySiteParser.strip_html(description.get_attribute('innerHTML'))
 
     def get_company_site_info(self, indeed_url) -> CompanySiteInfo:
@@ -168,8 +169,7 @@ class JobRecorder:
                                  conn,
                                  soup: BeautifulSoup,
                                  page_number: int,
-                                 query_id: int,
-                                 verbose: bool = True) -> List[IndeedJobInfo]:
+                                 query_id: int) -> List[IndeedJobInfo]:
         """
         Collect all job page links from search results
         Args:
@@ -177,7 +177,6 @@ class JobRecorder:
             conn:
             soup:
             page_number:
-            verbose:
 
         Returns:
 
@@ -186,7 +185,7 @@ class JobRecorder:
         jobs = []
         rank = 1
 
-        print("grabbing all jobs in page!")
+        logging.info(f"Grabbing all jobs in page for page {page_number}!")
         for job in soup.findAll('div', class_="jobsearch-SerpJobCard unifiedRow row result clickcard"):
             # Find relevant job details within the indeed job posting page
             location = job.find('div', class_="recJobLoc")['data-rc-loc']
@@ -199,11 +198,11 @@ class JobRecorder:
             company_site_info = self.get_company_site_info(indeed_url)
             stats = CompanySiteParser.html_to_stats(company_site_info.app_text)
 
-            if verbose:
-                print("processing job info for company ", company)
-                print("indeed url: ", indeed_url)
-                print("description: ", description)
-                print("This is a {} job".format(company_site_info.app_type))
+            # Quick log of job info
+            logging.info(f"processing job info for company {company}")
+            logging.info(f"This is a {company_site_info.app_type} job")
+            logging.debug(f"indeed url: {indeed_url}")
+            logging.debug(f"description: {description}")
 
             # Save job in IndeedJobInfo format
             job_info = IndeedJobInfo.from_dict({'title': title,
@@ -219,7 +218,7 @@ class JobRecorder:
                                                 'description': description})
 
             self.write_job_to_db(conn, job_info, query_id)
-            print("Processed job {} on page {}!".format(job_info.rank_on_page, page_number))
+            logging.info(f"Processed job {job_info.rank_on_page} on page {page_number}!")
 
             # Update jobs array and page ranking, making sure to wait after each job to be a friendly scraper!
             jobs += [job_info]
@@ -241,8 +240,8 @@ class JobRecorder:
         pagination = self.driver.find_elements_by_xpath("//*[@aria-label='Next']")
 
         # TODO: use find element rather than find elements, or somehow call out if there's more than one next button?
-        print("next page exists called on ", self.driver.current_url)
-        print("found {} elements with Next label".format(len(pagination)))
+        logging.info(f"next page exists called on {self.driver.current_url}")
+        logging.info(f"found {len(pagination)} elements with Next label")
         if len(pagination) == 0:
             return False
         else:
@@ -257,16 +256,23 @@ class JobRecorder:
 
         try:
             next_page_button = self.driver.find_element_by_xpath("//*[@aria-label='Next']")
-            print(next_page_button)
+            logging.debug(f"Next page button element: {next_page_button}")
             time.sleep(1)
             next_page_button.click()
         except ElementClickInterceptedException as e:
-            print("oh no, popup during next page click!")
+            logging.warning("oh no, popup during next page click!")
             self.driver.implicitly_wait(WAIT_SHORT)
             popup_helpers.remove_legal_popup(self.driver)
             self.driver.implicitly_wait(WAIT_SHORT)
             popup_helpers.remove_popover_popup(self.driver)
             self.driver.implicitly_wait(WAIT_SHORT)
+
+            # TODO(dsinc) make this cleaner, for now we're just trying the above code 2x to try to stop fails?
+            time.sleep(1)
+            logging.warning("Trying to close legal popups a second time, just in case!")
+            popup_helpers.remove_legal_popup(self.driver)
+            self.driver.implicitly_wait(WAIT_SHORT)
+            time.sleep(1)
 
             # Click the next page button after removing popups! Hope there's no error now...
             self.driver.implicitly_wait(WAIT_SHORT)
@@ -298,12 +304,19 @@ class JobRecorder:
             self.write_jobs_in_page_to_db(conn, soup, page_number, query_id)
 
             # Get next page of jobs, if it exists! Otherwise you're done with this query
+            # The next_page_exists call fails when it shouldn't sometimes, so we'll try it 2x here and see if that
+            # helps?
             if self.next_page_exists():
+                self.get_next_page()
+                page_number += 1
+            # TODO(dsinc): this is how I'm trying next_page_exists 2x... clean this up?
+            elif self.next_page_exists():
+                logging.warning("Found no next page, trying a second time.")
                 self.get_next_page()
                 page_number += 1
             else:
                 break
-        print("Done!! :D")
+        logging.info("Done writing all jobs to DB!! :D")
 
     @staticmethod
     def write_job_to_db(conn, job_info: IndeedJobInfo, query_id: int):
@@ -331,7 +344,7 @@ class JobRecorder:
             job_info.rank_on_page
         ))
         conn.commit()
-        print("lastrow of jobs: ", cur.lastrowid)
+        logging.info(f"lastrow of jobs: {cur.lastrowid}")
         return cur.lastrowid
 
 
@@ -340,8 +353,6 @@ if __name__ == "__main__":
 
     # Test that main data creation for one page works
     job_recorder.run(ALL_MLE_SEA_URL, 'output_files/job_data_mle_sea.csv')
-    # job_recorder.run(ALL_SWE_NY_URL, 'output_files/job_data_swe_ny.csv')
-    # job_recorder.run(ALL_SWE_SEA_URL, 'output_files/job_data_swe_sea.csv')
 
     # Test that pagination works
     # job_recorder.driver.get(search_url)
@@ -356,53 +367,3 @@ if __name__ == "__main__":
     #     print("current_page: ", job_recorder.current_search_page)
 
     job_recorder.driver.close()
-
-    # @staticmethod
-    # def get_column_names(job_info) -> List:
-    #     normalized_json = pd.json_normalize([job_info.to_dict()])
-    #     df = pd.DataFrame(data=normalized_json, index=[0])
-    #     return df.columns
-    #
-    # def write_all_jobs_to_csv(self, url: str, file_name: str) -> None:
-    #     """
-    #     Given a specific search URL, writes posted job info to file_name.
-    #     Args:
-    #         url: the url to the job query post entering text/loc and getting results.
-    #         file_name: name of file to save results to.
-    #     """
-    #     # Initialize counts and url position
-    #     page_number = 1
-    #     self.driver.get(url)
-    #     self.current_search_page = url
-    #
-    #     # Parse HTML, grab all job info on page
-    #     soup = BeautifulSoup(self.driver.page_source, "html.parser")
-    #     jobs_on_page = self.get_job_info(soup, page_number)
-    #
-    #     # Initialize df where we'll store the data
-    #     columns = self.get_column_names(jobs_on_page[0])
-    #     df = pd.DataFrame(columns=columns)
-    #     df.to_csv(file_name)
-    #     self.driver.implicitly_wait(WAIT_LONG)
-    #
-    #     while True:
-    #         # Put this page's jobs into dataframe, save
-    #         for job in jobs_on_page:
-    #             # Turn job info struct into a json
-    #             normalized_json = pd.json_normalize([job.to_dict()])
-    #             # Note: passing index 0 okay because we're creating a one row df
-    #             new_line_df = pd.DataFrame(data=normalized_json, index=[0])
-    #             new_line_df.to_csv(file_name, mode='a', header=False)
-    #             print("Processed job {} on page {}!".format(job.rank_on_page, page_number))
-    #
-    #         # Repeat as long as there's another page to grab and we're under the limit
-    #         if not self.next_page_exists() or page_number >= self.pagination_limit:
-    #             break
-    #         else:
-    #             # Get next page of jobs!
-    #             self.get_next_page()
-    #             page_number += 1
-    #             soup = BeautifulSoup(self.driver.page_source, "html.parser")
-    #             jobs_on_page = self.get_job_info(soup, page_number)
-    #
-    #     print("Done!! :D")

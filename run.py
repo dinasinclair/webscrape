@@ -7,6 +7,8 @@ from job_recorder import JobRecorder
 from typing import List
 import sqlite3
 from constants import DB_PATH
+import logging
+import argparse
 
 
 class Orchestration:
@@ -34,10 +36,10 @@ class Orchestration:
         """ create a database connection to a SQLite database """
         try:
             conn = sqlite3.connect(db_file)
-            print("Connected to ", db_file, " using sqlite3 version ", sqlite3.version)
+            logging.info("Connected to {} using sqlite3 version {}".format(db_file, sqlite3.version))
             return conn
         except sqlite3.Error:
-            print("Unable to connect to the database.")
+            logging.error("Unable to connect to the database.")
             raise
 
     @staticmethod
@@ -50,7 +52,18 @@ class Orchestration:
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--log', help='level of logging to display (error, warn, info, debug)')
+    args = parser.parse_args()
+    if args.log:
+        log_level = getattr(logging, args.log.upper())
+        logging.basicConfig(level=log_level)
+    else:
+        logging.basicConfig(level=logging.INFO)
+
     orchestration = Orchestration()
+    logging.info("Creating Tables")
     orchestration.execute_sql(orchestration.conn, create_jobs_table)
     orchestration.execute_sql(orchestration.conn, create_queries_table)
+    logging.info("Running Query")
     orchestration.run_single_query("Machine Learning Engineer", "Seattle, WA")

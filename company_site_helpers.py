@@ -4,6 +4,7 @@ from typing import Dict
 from selenium.common.exceptions import NoSuchElementException, ElementClickInterceptedException
 import popup_helpers
 import time
+import logging
 
 
 class CompanySiteParser:
@@ -15,19 +16,16 @@ class CompanySiteParser:
         return page_soup.get_text("\t", strip=True).lower()
 
     @staticmethod
-    def html_to_stats(html_text: str, verbose: bool = False) -> Dict[str, int]:
+    def html_to_stats(html_text: str) -> Dict[str, int]:
         stats_dict = {}
         app_text = CompanySiteParser.strip_html(html_text)
 
-        if verbose:
-            print("APP TEXT: \n", app_text)
+        logging.debug(f"App text: \n {app_text}")
 
         # store word count in app text for all key words
         for key_word in KEY_WORDS:
             word_count = app_text.count(key_word)
-            if verbose:
-                print(
-                    "The word {} appears in the application {} times".format(key_word, word_count))
+            logging.debug(f"The word {key_word} appears in the application {word_count} times")
             stats_dict[key_word] = word_count
         return stats_dict
 
@@ -45,14 +43,21 @@ class CompanySiteParser:
             time.sleep(1)
             apply_button.click()
         except ElementClickInterceptedException as e:
-            print("oh no, popup during apply_now click!")
+            logging.warning("oh no, popup during apply_now click!")
             driver.implicitly_wait(WAIT_SHORT)
             popup_helpers.remove_legal_popup(driver)
             driver.implicitly_wait(WAIT_SHORT)
             popup_helpers.remove_popover_popup(driver)
             driver.implicitly_wait(WAIT_SHORT)
 
+            # TODO(dsinc) clean this up, but for now trying popup cleanup 2x because it still fails?
+            time.sleep(1)
+            logging.warning("trying to close legal popup a second time just in case!")
+            popup_helpers.remove_legal_popup(driver)
+            driver.implicitly_wait(WAIT_SHORT)
+
             # Click the next page button after removing popups! Hope there's no error now...
+            time.sleep(1)
             apply_button = driver.find_element_by_id('indeedApplyButtonContainer')
             time.sleep(1)
             apply_button.click()
