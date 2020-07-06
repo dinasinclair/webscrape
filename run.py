@@ -66,4 +66,6 @@ if __name__ == '__main__':
     orchestration.execute_sql(orchestration.conn, create_jobs_table)
     orchestration.execute_sql(orchestration.conn, create_queries_table)
     logging.info("Running Query")
-    orchestration.run_single_query("Machine Learning Engineer", "Seattle, WA")
+    for location in ["Austin, TX", "New York, NY"]:
+        for job in ["Product Manager", "Teacher"]:
+            orchestration.run_single_query(job, location)

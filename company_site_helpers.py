@@ -68,16 +68,21 @@ class CompanySiteParser:
     @staticmethod
     def get_lever_job_text(driver) -> str:
         # There are two structures here: straight to application, or description than application.
-        # Case 1: straight to application (ex. https://jobs.lever.co/grabango/7ff6e367-6523-4ca2-b630-57a46881e467/apply?lever-source=Glassdoor)
+        # Case 1: straight to application
+        # (ex. https://jobs.lever.co/grabango/7ff6e367-6523-4ca2-b630-57a46881e467/apply?lever-source=Glassdoor)
         try:
             driver.find_element_by_class_name('application-page')
-        # Case 2: first page is description for lever forms, second page is app questions (like https://jobs.lever.co/blueowl/4a01e48e-8602-4f76-a87c-6ad16b63b2a1?lever-source=IndeedSponsored)
-        except:  # TODO add the right exception type here
-            driver.find_element_by_class_name(
-                'posting-page')  # TODO this could cause an error two, should I bother to catch that?
-            link_to_app = driver.find_element_by_xpath('//a[text()="Apply for this job"]')
-            driver.get(link_to_app.get_attribute('href'))
-            driver.implicitly_wait(WAIT_SHORT)
+        # Case 2: first page is description for lever forms, second page is app questions
+        # (like https://jobs.lever.co/blueowl/4a01e48e-8602-4f76-a87c-6ad16b63b2a1?lever-source=IndeedSponsored)
+        except NoSuchElementException:
+            try:
+                driver.find_element_by_class_name('posting-page')
+                link_to_app = driver.find_element_by_xpath('//a[text()="Apply for this job"]')
+                driver.get(link_to_app.get_attribute('href'))
+                driver.implicitly_wait(WAIT_SHORT)
+            except NoSuchElementException:
+                logging.warning("Could not access lever job text")
+                return ("Error loading lever job text")
 
         return CompanySiteParser.strip_html(driver.page_source)
 
