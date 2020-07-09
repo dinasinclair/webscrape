@@ -3,7 +3,7 @@ Constants!!!
 """
 
 # Code version, used in database to keep track of code status at time of info collection.
-VERSION = '1.0.2'
+VERSION = '1.0.3'
 DB_PATH = 'db/scraper_data_v{}.db'.format(VERSION[0])
 
 # Machine Learning Engineer

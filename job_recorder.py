@@ -188,11 +188,16 @@ class JobRecorder:
         logging.info(f"Grabbing all jobs in page for page {page_number}!")
         for job in soup.findAll('div', class_="jobsearch-SerpJobCard unifiedRow row result clickcard"):
             # Find relevant job details within the indeed job posting page
+            # TODO(dsinc): add error handling for rest of job variables
             location = job.find('div', class_="recJobLoc")['data-rc-loc']
-            company = job.find('span', class_="company").text.strip()
             title = job.find('a', class_="jobtitle turnstileLink")['title']
             indeed_url = 'http://indeed.com' + job.find('a', class_="jobtitle turnstileLink")['href']
             description = self.get_description(indeed_url)
+
+            try:
+                company = job.find('span', class_="company").text.strip()
+            except AttributeError:
+                company = 'Company Not Found'
 
             # Find additional information as needed from the company site
             company_site_info = self.get_company_site_info(indeed_url)
