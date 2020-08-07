@@ -1,5 +1,9 @@
 # Pronoun WebScraper
 
+This webscraper iterates through indeed.com job postings for a given location (ex. "Chicago, IL") and job type (ex. "Machine Learning Engineer"), storing all job applications that use LGBTQ friendly language ("pronoun", "transgender", etc.). While some applications are done within indeed.com, some require following external links to a wide variety of job application website formats, thus the code complexity.
+
+Indeed.com states in their [robots.txt](https://www.indeed.com/robots.txt) that scraping their site is allowed.
+
 ## Version Notes
 #### 0.0.0
 All the coding done before I started tracking the version number. 
@@ -34,9 +38,9 @@ Match with jobs on queries.query_id = jobs.query_id
  - Text result_url
  - Int total_hits
 
-#### Dimension: Stats Table (TODO not implemented yet)
+#### Dimension: Stats Table
 
-Match with jobs on stats.job_id = jons.job_id
+Match with jobs on stats.job_id = jobs.job_id
  - Int job_id
  - Text text
  - Int description_frequency
