@@ -12,7 +12,7 @@ Includes basic scraping functionality, jobs table, queries table.
 Adds version number and num_hits to the queries table.
 
 ## Schema
-Star Schema ish? I should think through if there's a better way to do this.
+This schema follows roughly a star schema, with each job joined across several descriptive dimensions.
 
 #### Fact: Jobs Table
  - Int job_id
